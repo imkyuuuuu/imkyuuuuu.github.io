@@ -1,6 +1,6 @@
 // service-worker.js
 
-const CACHE_NAME = "casino-crush-pwa-v16";
+const CACHE_NAME = "casino-crush-pwa-v17";
 
 // IMPORTANT:
 // - Inclure ici seulement les fichiers servis depuis VOTRE domaine GitHub Pages (same-origin).
@@ -27,8 +27,12 @@ const ASSETS = [
   "./service-worker.js",
 
   // icons (adapte si tes chemins diffèrent)
-  "./icons/icon-192.png",
-  "./icons/icon-512.png"
+"./icons/favicon.ico",
+"./icons/icon-192.png",
+"./icons/icon-512.png",
+"./icons/favicon-32.png",
+"./icons/favicon-16.png",
+"./icons/apple-touch-icon.png"
 ];
 
 // --- Install: pré-cache ---
@@ -117,6 +121,7 @@ self.addEventListener("fetch", (event) => {
     }
   })());
 });
+
 
 
 
