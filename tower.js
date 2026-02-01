@@ -1,367 +1,246 @@
-// Tower (arcade) – animation de révélation + tour verticale
-// Aucun enjeu réel, score fictif uniquement.
+// Tower – grille complète 8x4, ligne active plus claire, SAFE vert, TRAP rouge.
+// Mode arcade/simulation (pas d'argent, pas de mise).
 
-const STORAGE_KEY = "casino_crush_tower_state_v2";
+const STORAGE_KEY = "casino_crush_tower_grid_v1";
 
+const ROWS = 8;
+const COLS = 4;
+const POINTS_PER_SAFE = 50;
+
+// RNG robuste (navigateur)
 function randInt(maxExclusive) {
-  const arr = new Uint32Array(1);
-  crypto.getRandomValues(arr);
-  return arr[0] % maxExclusive;
+  const a = new Uint32Array(1);
+  crypto.getRandomValues(a);
+  return a[0] % maxExclusive;
 }
-function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
-function el(id) { return document.getElementById(id); }
-function delay(ms) { return new Promise(res => setTimeout(res, ms)); }
+function el(id){ return document.getElementById(id); }
+function delay(ms){ return new Promise(r => setTimeout(r, ms)); }
 
 const ui = {
+  grid: el("towerGrid"),
   floor: el("towerFloor"),
   score: el("towerScore"),
   status: el("towerStatus"),
-  log: el("towerLog"),
-  choices: el("towerChoices"),
-  stack: el("towerStack"),
   hint: el("towerHint"),
-
-  inpFloors: el("inpFloors"),
-  inpCols: el("inpCols"),
-  inpPoints: el("inpPoints"),
-
+  log: el("towerLog"),
   btnStart: el("btnStartTower"),
   btnReset: el("btnResetTower"),
   btnStop: el("btnStopRun"),
-
-  disclaimer: el("towerDisclaimer"),
-  btnHideDisclaimer: el("btnHideTowerDisclaimer")
 };
 
 const defaultState = {
-  showDisclaimer: true,
-  config: { floors: 10, cols: 3, pointsPerFloor: 50 },
   running: false,
-  locked: false,           // bloque durant l’animation de révélation
-  currentFloor: 0,         // 0-based
+  locked: false,
+  activeRow: 0,       // 0 = bas, 7 = haut (on grimpe)
   score: 0,
-
-  safeByFloor: [],
-  history: [],             // { floor, pick, safe, result }
-
-  // pour animation/reveal
-  lastReveal: null         // { floor, pick, safe, result }
+  // une colonne safe par ligne
+  safeByRow: Array.from({ length: ROWS }, () => 0),
+  // history: { row, col, result: "SAFE"|"TRAP" }
+  history: []
 };
 
-let state = loadState();
+let state = load();
 
-function structuredCloneSafe(obj){
-  return JSON.parse(JSON.stringify(obj));
-}
-
-function loadState() {
-  try {
+function load(){
+  try{
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return structuredCloneSafe(defaultState);
+    if(!raw) return structuredClone(defaultState);
     const s = JSON.parse(raw);
-    // validation minimaliste
-    if (!s.config || typeof s.config.floors !== "number") return structuredCloneSafe(defaultState);
-    return { ...structuredCloneSafe(defaultState), ...s };
-  } catch {
-    return structuredCloneSafe(defaultState);
+    return { ...structuredClone(defaultState), ...s };
+  }catch{
+    return structuredClone(defaultState);
   }
 }
-
-function saveState() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+function save(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch{}
 }
-
-function setState(patch) {
+function setState(patch){
   state = { ...state, ...patch };
-  saveState();
+  save();
   render();
 }
 
-function resetAll() {
-  state = structuredCloneSafe(defaultState);
-  saveState();
-  render();
+function resetAll(){
+  setState(structuredClone(defaultState));
+  ui.hint.textContent = "";
 }
 
-function startGameFromInputs() {
-  const floors = clamp(parseInt(ui.inpFloors.value, 10) || 10, 5, 50);
-  const cols = clamp(parseInt(ui.inpCols.value, 10) || 3, 2, 6);
-  const pointsPerFloor = clamp(parseInt(ui.inpPoints.value, 10) || 50, 1, 1000);
-
-  const safeByFloor = Array.from({ length: floors }, () => randInt(cols));
-
+function start(){
+  const safeByRow = Array.from({ length: ROWS }, () => randInt(COLS));
   setState({
-    config: { floors, cols, pointsPerFloor },
     running: true,
     locked: false,
-    currentFloor: 0,
+    activeRow: 0,
     score: 0,
-    safeByFloor,
-    history: [],
-    lastReveal: null
+    safeByRow,
+    history: []
   });
+  ui.hint.textContent = "Partie démarrée. Choisis une tuile sur la ligne active.";
 }
 
-function stopRun() {
-  if (!state.running) return;
-  setState({ running: false, locked: false, lastReveal: null });
+function stopRun(){
+  if(!state.running) return;
+  setState({ running: false, locked: false });
   ui.hint.textContent = "Run terminée volontairement. Score conservé.";
 }
 
-async function onPick(choiceIndex) {
-  if (!state.running || state.locked) return;
-
-  const floor = state.currentFloor;
-  const safe = state.safeByFloor[floor];
-  const isSafe = (choiceIndex === safe);
-
-  const reveal = {
-    floor,
-    pick: choiceIndex,
-    safe,
-    result: isSafe ? "SAFE" : "TRAP"
-  };
-
-  // verrouille et mémorise la révélation
-  setState({ locked: true, lastReveal: reveal });
-  ui.hint.textContent = "Révélation…";
-
-  // 1) déclencher flip sur la tuile choisie immédiatement
-  revealTile(choiceIndex, isSafe);
-
-  // 2) après un court délai, révéler la tuile safe si différente (feedback visuel)
-  await delay(280);
-  if (safe !== choiceIndex) {
-    revealTile(safe, true, true); // revealSafeOnly: ne marque pas comme "trap"
-  }
-
-  // 3) laisser le temps d’observer
-  await delay(520);
-
-  // commit logique jeu
-  const history = [...state.history, reveal];
-
-  if (!isSafe) {
-    setState({
-      running: false,
-      locked: false,
-      history
-    });
-    ui.hint.textContent = "Échec. Partie terminée.";
-    return;
-  }
-
-  // safe => points + étage suivant
-  const newScore = state.score + state.config.pointsPerFloor;
-  const nextFloor = floor + 1;
-
-  if (nextFloor >= state.config.floors) {
-    setState({
-      score: newScore,
-      running: false,
-      locked: false,
-      history,
-      lastReveal: null
-    });
-    ui.hint.textContent = "Bravo — tour complétée.";
-    return;
-  }
-
-  setState({
-    score: newScore,
-    currentFloor: nextFloor,
-    locked: false,
-    history,
-    lastReveal: null
-  });
-  ui.hint.textContent = "Réussi. Étage suivant.";
+function rowIndexToVisual(r){
+  // On veut visuellement une tour “du bas vers le haut”.
+  // On rend la grille de haut en bas, donc la ligne 7 (haut) est rendue en premier.
+  // VisualRow = (ROWS - 1 - r)
+  return ROWS - 1 - r;
 }
 
-function revealTile(index, isSafe, revealSafeOnly=false) {
-  const tile = ui.choices.querySelector(`[data-index="${index}"]`);
-  if (!tile) return;
+async function onPick(row, col){
+  if(!state.running || state.locked) return;
+  if(row !== state.activeRow) return; // seulement ligne active
 
-  // prépare classes
+  setState({ locked: true });
+  const safeCol = state.safeByRow[row];
+  const isSafe = (col === safeCol);
+
+  // Marquer visuellement la tuile cliquée (reveal)
+  revealTile(row, col, isSafe ? "SAFE" : "TRAP");
+
+  // Optionnel : révéler brièvement la tuile safe si le joueur a échoué
+  if(!isSafe){
+    await delay(260);
+    if(safeCol !== col) revealTile(row, safeCol, "SAFE", true);
+    await delay(520);
+
+    const history = [...state.history, { row, col, result: "TRAP" }];
+    setState({ running:false, locked:false, history });
+    ui.hint.textContent = "Mauvaise case (rouge). Partie terminée.";
+    return;
+  }
+
+  // SAFE
+  await delay(260);
+  const history = [...state.history, { row, col, result: "SAFE" }];
+  const nextRow = row + 1;
+  const newScore = state.score + POINTS_PER_SAFE;
+
+  // Fin : si on vient de réussir la dernière ligne
+  if(nextRow >= ROWS){
+    setState({ score: newScore, running:false, locked:false, history, activeRow: row });
+    ui.hint.textContent = "Tour complétée. Bravo.";
+    return;
+  }
+
+  setState({ score: newScore, activeRow: nextRow, locked:false, history });
+  ui.hint.textContent = "Bonne case (vert). Ligne suivante.";
+}
+
+function revealTile(row, col, result, isSecondary=false){
+  const id = `tile-r${row}-c${col}`;
+  const tile = document.getElementById(id);
+  if(!tile) return;
+
   tile.classList.add("reveal");
-  tile.classList.remove("safe", "trap");
+  tile.classList.remove("safe","trap");
 
-  const back = tile.querySelector(".tower-back");
-  if (back) {
-    back.classList.remove("safe-back", "trap-back");
-    if (isSafe) {
-      back.classList.add("safe-back");
-      back.textContent = "SAFE";
-    } else {
-      back.classList.add("trap-back");
-      back.textContent = "TRAP";
-    }
+  if(result === "SAFE") tile.classList.add("safe");
+  if(result === "TRAP" && !isSecondary) tile.classList.add("trap");
+
+  const label = tile.querySelector(".tower-mini");
+  if(label){
+    label.textContent = result;
   }
-
-  // color border
-  if (isSafe) tile.classList.add("safe");
-  else if (!revealSafeOnly) tile.classList.add("trap");
 }
 
-function render() {
-  ui.disclaimer.style.display = state.showDisclaimer ? "block" : "none";
-
+function render(){
   // HUD
   ui.score.textContent = String(state.score);
+  ui.status.textContent = state.running ? (state.locked ? "Révélation…" : "En cours") : (state.history.length ? "Terminé" : "Prêt");
 
-  if (state.running) {
-    ui.floor.textContent = `${state.currentFloor + 1} / ${state.config.floors}`;
-    ui.status.textContent = state.locked ? "Révélation…" : "En cours";
-  } else {
+  if(state.running){
+    ui.floor.textContent = `${state.activeRow + 1} / ${ROWS}`;
+  }else{
     ui.floor.textContent = "—";
-    ui.status.textContent = (state.history.length === 0) ? "Prêt" : "Terminé";
   }
-
-  // inputs
-  ui.inpFloors.value = String(state.config.floors);
-  ui.inpCols.value = String(state.config.cols);
-  ui.inpPoints.value = String(state.config.pointsPerFloor);
 
   ui.btnStop.disabled = !state.running || state.locked;
 
-  // log
-  if (state.history.length === 0) {
+  // Log
+  if(state.history.length === 0){
     ui.log.textContent = "—";
-  } else {
+  }else{
     ui.log.innerHTML = state.history
       .slice(-12)
-      .map(h => {
-        const floorDisplay = h.floor + 1;
-        const verdict = h.result === "SAFE" ? "✅ SAFE" : "🟥 TRAP";
-        return `<div>Étage ${floorDisplay}: choix ${h.pick + 1} → ${verdict}</div>`;
-      })
-      .join("");
+      .map(h => `Ligne ${h.row + 1} : case ${h.col + 1} → ${h.result === "SAFE" ? "✅ SAFE" : "🟥 TRAP"}`)
+      .join("<br/>");
   }
 
-  // render tower stack + choices
-  renderTowerStack();
-  renderChoicesGrid();
-
-  saveState();
+  renderGrid();
 }
 
-function renderTowerStack() {
-  const floors = state.config.floors;
-  const cols = state.config.cols;
+function renderGrid(){
+  ui.grid.innerHTML = "";
 
-  ui.stack.innerHTML = "";
+  // Rendu de haut (row 7) vers bas (row 0)
+  for(let visual = 0; visual < ROWS; visual++){
+    const row = ROWS - 1 - visual;
 
-  // Construire du haut vers le bas (floor N -> 1)
-  for (let f = floors - 1; f >= 0; f--) {
-    const row = document.createElement("div");
+    for(let col = 0; col < COLS; col++){
+      const tile = document.createElement("div");
+      tile.id = `tile-r${row}-c${col}`;
+      tile.className = "tower-tile";
 
-    // état du plancher
-    const hist = state.history.find(h => h.floor === f);
-    const isDone = hist && hist.result === "SAFE";
-    const isFail = hist && hist.result === "TRAP";
-    const isActive = state.running && f === state.currentFloor;
-
-    row.className = "tower-floor " +
-      (isActive ? "floor-active" : "") +
-      (isDone ? " floor-done" : "") +
-      (isFail ? " floor-fail" : "") +
-      (!isActive && !isDone && !isFail ? " floor-upcoming" : "");
-
-    const label = document.createElement("div");
-    label.className = "floor-label";
-    label.textContent = `Étage ${f + 1}`;
-
-    const mini = document.createElement("div");
-    mini.className = "floor-mini";
-
-    for (let c = 0; c < cols; c++) {
-      const dot = document.createElement("div");
-      dot.className = "mini-cell";
-
-      // si on a une entrée historique pour cet étage : colorer la case choisie et la safe
-      if (hist) {
-        if (c === hist.safe) {
-          dot.style.borderColor = "rgba(34,197,94,.50)";
-          dot.style.background = "rgba(34,197,94,.18)";
-        }
-        if (c === hist.pick && hist.result === "TRAP") {
-          dot.style.borderColor = "rgba(239,68,68,.55)";
-          dot.style.background = "rgba(239,68,68,.18)";
-        }
+      // Classes par statut de ligne
+      if(state.running){
+        if(row === state.activeRow) tile.classList.add("active");
+        else if(row > state.activeRow) tile.classList.add("future");
+        else tile.classList.add("past");
+      }else{
+        // après partie : tout en "past" visuel, mais on laisse les reveals via historique
+        tile.classList.add("past");
       }
 
-      // si étage actif : marquer visuellement
-      if (isActive) {
-        dot.style.borderColor = "rgba(124,58,237,.55)";
-        dot.style.background = "rgba(124,58,237,.12)";
-      }
+      // disabled si pas ligne active ou locked
+      const disabled = !state.running || state.locked || row !== state.activeRow;
+      tile.setAttribute("aria-disabled", disabled ? "true" : "false");
 
-      mini.appendChild(dot);
+      // contenu
+      const inner = document.createElement("div");
+      inner.className = "tower-inner";
+
+      // (Optionnel) icône gem — si tu ajoutes un PNG plus tard
+      // const img = document.createElement("img");
+      // img.className = "tower-gem";
+      // img.src = "assets/tower/gem.png";
+      // img.alt = "Gem";
+      // inner.appendChild(img);
+
+      const main = document.createElement("div");
+      main.textContent = " ";
+      const mini = document.createElement("div");
+      mini.className = "tower-mini";
+      mini.textContent = (row === state.activeRow && state.running) ? `Ligne ${row+1}` : "";
+      inner.appendChild(main);
+      inner.appendChild(mini);
+
+      tile.appendChild(inner);
+
+      // interactions
+      tile.addEventListener("click", () => {
+        if(disabled) return;
+        onPick(row, col);
+      });
+
+      ui.grid.appendChild(tile);
     }
+  }
 
-    row.appendChild(label);
-    row.appendChild(mini);
-    ui.stack.appendChild(row);
+  // Re-appliquer l’historique (pour garder vert/rouge au re-render)
+  for(const h of state.history){
+    revealTile(h.row, h.col, h.result);
   }
 }
 
-function renderChoicesGrid() {
-  ui.choices.innerHTML = "";
+// Events
+ui.btnStart?.addEventListener("click", start);
+ui.btnReset?.addEventListener("click", resetAll);
+ui.btnStop?.addEventListener("click", stopRun);
 
-  // régler le nombre de colonnes visuel
-  ui.choices.style.gridTemplateColumns = `repeat(${state.config.cols}, minmax(0, 1fr))`;
-
-  if (!state.running) {
-    ui.choices.innerHTML = `<div class="tower-muted">Démarre une partie pour afficher les cases.</div>`;
-    return;
-  }
-
-  for (let i = 0; i < state.config.cols; i++) {
-    const tile = document.createElement("div");
-    tile.className = "tower-tile";
-    tile.dataset.index = String(i);
-    tile.setAttribute("role", "button");
-    tile.setAttribute("tabindex", state.locked ? "-1" : "0");
-    tile.setAttribute("aria-disabled", state.locked ? "true" : "false");
-
-    // flip card
-    const card = document.createElement("div");
-    card.className = "tower-card";
-
-    const front = document.createElement("div");
-    front.className = "tower-face tower-front";
-    front.textContent = `Case ${i + 1}`;
-
-    const back = document.createElement("div");
-    back.className = "tower-face tower-back";
-    back.textContent = "—";
-
-    card.appendChild(front);
-    card.appendChild(back);
-    tile.appendChild(card);
-
-    // click handler
-    tile.addEventListener("click", () => onPick(i));
-    tile.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") onPick(i);
-    });
-
-    ui.choices.appendChild(tile);
-  }
-}
-
-// Disclaimer
-ui.btnHideDisclaimer.addEventListener("click", () => setState({ showDisclaimer: false }));
-
-// Actions
-ui.btnStart.addEventListener("click", startGameFromInputs);
-ui.btnReset.addEventListener("click", resetAll);
-ui.btnStop.addEventListener("click", stopRun);
-
-// Service Worker (si déjà utilisé)
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./service-worker.js").catch(() => {});
-  });
-}
-
+// Init
 render();
