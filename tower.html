@@ -75,56 +75,50 @@
         Probabilité de réussite par étage ≈ 1 / colonnes. RNG : <code>crypto.getRandomValues</code>.
       </p>
     </section>
-
 <section class="tower-wrap">
-  <!-- Colonne tour (à gauche) -->
-  <div class="tower-visual card">
-    <div class="card-title">Tour</div>
-    <div id="towerStack" class="tower-stack" aria-label="Tour verticale des étages"></div>
-    <div class="tower-legend">
-      <span class="pill pill-upcoming">À venir</span>
-      <span class="pill pill-active">Actuel</span>
-      <span class="pill pill-done">Réussi</span>
-      <span class="pill pill-fail">Échec</span>
-    </div>
-  </div>
-
-  <!-- Zone de jeu (à droite) -->
   <div class="tower-board card">
-    <div class="card-title">Étage courant</div>
-    <div class="tower-sub">
-      Choisis une case. Révélation visuelle immédiate (safe/trap).
+    <div class="tower-header-row">
+      <div>
+        <div class="card-title">Tower (arcade)</div>
+        <div class="tower-sub">Choisis une tuile sur la ligne active. Vert = réussi, rouge = échec.</div>
+      </div>
+      <div class="tower-actions">
+        <a class="btn secondary" href="./index.html">Accueil</a>
+        <button id="btnResetTower" class="btn secondary">Réinitialiser</button>
+      </div>
     </div>
 
-    <!-- Grille de tuiles à révélation -->
-    <div id="towerChoices" class="tower-choices-grid" aria-label="Choix de cases"></div>
+    <section class="hud tower-hud">
+      <div class="hud-item">
+        <div class="hud-label">Ligne</div>
+        <div id="towerFloor" class="hud-value">—</div>
+      </div>
+      <div class="hud-item">
+        <div class="hud-label">Score</div>
+        <div id="towerScore" class="hud-value">—</div>
+      </div>
+      <div class="hud-item">
+        <div class="hud-label">Statut</div>
+        <div id="towerStatus" class="hud-value">—</div>
+      </div>
+    </section>
 
-    <div class="tower-actions">
+    <!-- Grille 8 x 4 -->
+    <div id="towerGrid" class="tower-grid" aria-label="Grille tower"></div>
+
+    <div id="towerHint" class="tower-hint"></div>
+
+    <div class="tower-footer-row">
+      <button id="btnStartTower" class="btn primary">Démarrer</button>
       <button id="btnStopRun" class="btn secondary" disabled>Terminer la run</button>
     </div>
-
-    <div class="tower-hint" id="towerHint"></div>
   </div>
 
-  <!-- Historique -->
   <div class="card">
     <div class="card-title">Historique</div>
     <div id="towerLog" class="tower-log">—</div>
   </div>
 </section>
 
+<script src="tower.js"></script>
 
-      <div class="card">
-        <div class="card-title">Historique</div>
-        <div id="towerLog" class="tower-log">—</div>
-      </div>
-    </section>
-  </main>
-
-  <footer class="footer">
-    <span>PWA : fonctionne hors-ligne après la première visite (cache local).</span>
-  </footer>
-
-  <script src="tower.js"></script>
-</body>
-</html>
