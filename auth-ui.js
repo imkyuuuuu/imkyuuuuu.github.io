@@ -1,10 +1,12 @@
 // auth-ui.js
 import { onUserChanged, logout } from "./firebase-auth.js";
+import { ensureUserDoc, getCredits } from "./credits.js";
 
 function el(id) { return document.getElementById(id); }
 
-function setUserBar(user) {
+async function setUserBar(user) {
   const userNameEl = el("userPseudo");
+  const userCreditsEl = el("userCredits");
   const userAuthedEl = el("userAuthed");
   const userAnonEl = el("userAnon");
 
@@ -14,9 +16,27 @@ function setUserBar(user) {
     userNameEl.textContent = user.displayName || "Utilisateur";
     userAuthedEl.style.display = "flex";
     userAnonEl.style.display = "none";
+
+    // Expose l'utilisateur pour les jeux (lecture)
+    window.CC_CURRENT_USER = user;
+
+    if (userCreditsEl) {
+      try {
+        await ensureUserDoc(user, 1000);
+        const c = await getCredits(user);
+        userCreditsEl.textContent = (c === null) ? "—" : String(c);
+      } catch (e) {
+        console.error(e);
+        userCreditsEl.textContent = "—";
+      }
+    }
   } else {
     userAuthedEl.style.display = "none";
     userAnonEl.style.display = "flex";
+    window.CC_CURRENT_USER = null;
+
+    const userCreditsEl2 = el("userCredits");
+    if (userCreditsEl2) userCreditsEl2.textContent = "—";
   }
 }
 
@@ -32,5 +52,5 @@ function wireLogout() {
 
 window.addEventListener("load", () => {
   wireLogout();
-  onUserChanged((user) => setUserBar(user));
+  onUserChanged((user) => { setUserBar(user); });
 });
