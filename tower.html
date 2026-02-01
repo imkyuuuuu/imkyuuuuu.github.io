@@ -8,12 +8,6 @@
   <meta name="theme-color" content="#0b1020" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="styles.css" />
-  <div class="userbar">
-  <div id="userAuthed" class="userbar-group" style="display:none;">
-    <span class="userbar-label">Connecté :</span>
-    <span id="userPseudo" class="userbar-name">—</span>
-    <button id="btnLogout" class="btn secondary userbar-btn">Déconnexion</button>
-  </div>
 
   <div id="userAnon" class="userbar-group">
     <a class="btn secondary userbar-btn" href="./login.html">Connexion</a>
@@ -31,6 +25,14 @@
         <div class="subtitle">Tower – arcade (score fictif)</div>
       </div>
     </div>
+      <div class="userbar">
+  <div id="userAuthed" class="userbar-group" style="display:none;">
+    <span class="userbar-label">Connecté :</span>
+    <span id="userPseudo" class="userbar-name">—</span>
+    <span class="userbar-label">Crédits :</span>
+<span id="userCredits" class="userbar-name">—</span>
+    <button id="btnLogout" class="btn secondary userbar-btn">Déconnexion</button>
+  </div>
 
     <nav class="nav">
       <a class="btn secondary" href="./index.html">Accueil</a>
