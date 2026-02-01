@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Slot 3×3 – Casino Crush</title>
+
+  <meta name="theme-color" content="#0b1020" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">CC</div>
+      <div>
+        <div class="title">Casino Crush</div>
+        <div class="subtitle">Slot 3×3 (Arcade)</div>
+      </div>
+    </div>
+
+    <!-- User bar persistante -->
+    <div class="userbar">
+      <div id="userAuthed" class="userbar-group" style="display:none;">
+        <span class="userbar-label">Connecté :</span>
+        <span id="userPseudo" class="userbar-name">—</span>
+        <span class="userbar-label">Crédits :</span>
+        <span id="userCredits" class="userbar-name">—</span>
+        <button id="btnLogout" class="btn secondary userbar-btn">Déconnexion</button>
+      </div>
+
+      <div id="userAnon" class="userbar-group">
+        <a class="btn secondary userbar-btn" href="./login.html">Connexion</a>
+        <a class="btn primary userbar-btn" href="./signup.html">Créer un compte</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <div class="card-title">Slot 3×3 – Arcade (sans mise de crédits)</div>
+      <p style="margin-top:6px;color:rgba(232,236,255,.75);font-size:13px;">
+        La “mise” ci-dessous influence la <b>récompense en cas de gain</b>, mais <b>ne retire jamais</b> de crédits si tu ne gagnes pas.
+      </p>
+
+      <!-- Contrôles -->
+      <div class="slot-controls" style="display:grid; gap:12px; margin-top:12px;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+          <div style="min-width:220px;">
+            <div style="font-weight:900; margin-bottom:6px;">Mise (stake) : <span id="stakeLabel">1</span></div>
+            <input id="stake" type="range" min="1" max="10" value="1" style="width:220px;">
+          </div>
+
+          <button id="btnSpin" class="btn primary">SPIN</button>
+          <button id="btnBack" class="btn secondary" onclick="location.href='./index.html'">Accueil</button>
+        </div>
+
+        <div id="slotHint" class="form-msg" style="margin-top:0;"></div>
+      </div>
+
+      <!-- Grille 3x3 -->
+      <div class="slot-wrap" style="margin-top:14px;">
+        <div id="slotGrid" class="slot-grid" aria-label="Slot grid"></div>
+
+        <!-- Lignes gagnantes (overlay) -->
+        <div id="slotOverlay" class="slot-overlay" aria-hidden="true"></div>
+      </div>
+
+      <!-- Tableau de gains -->
+      <div style="margin-top:14px; color:rgba(232,236,255,.85); font-size:13px; line-height:1.45;">
+        <div style="font-weight:900; margin-bottom:6px;">Règles de gain</div>
+        <ul style="margin:0; padding-left:18px;">
+          <li>3 identiques sur une ligne (horizontale / verticale / diagonale) → <b>gain</b></li>
+          <li>2 lignes gagnantes ou + → <b>bonus</b></li>
+          <li>Récompense = (base) × (stake)</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>Mode arcade : récompense uniquement (aucune perte de crédits sur un échec).</span>
+  </footer>
+
+  <!-- Important: auth-ui sur cette page pour window.CC_CURRENT_USER + crédits -->
+  <script type="module" src="./auth-ui.js"></script>
+  <script type="module" src="./slot.js"></script>
+</body>
+</html>
