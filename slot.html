@@ -43,11 +43,26 @@
     <a class="btn secondary" href="./tower.html">Tower</a>
     <a class="btn primary" href="./slot.html">Slot 3×3</a>
   </nav>
+   
 </header>
+  <main class="container layout-two-cols">
+  <!-- Colonne gauche : avatar -->
+  <aside class="card avatar-panel" aria-label="Avatar du joueur">
+    <div class="avatar-frame">
+      <div class="avatar-inner">
+<img class="avatar-img" src="./avatars/avatar2.png" alt="Avatar du joueur" />
 
+      </div>
+    </div>
+    <div class="avatar-caption">
+      <div class="avatar-name">Avatar</div>
+      <div class="avatar-sub">Synchronisé au compte</div>
+    </div>
+  </aside>
 
-  <main class="container">
-    <section class="card">
+  <!-- Colonne droite : ton contenu existant -->
+  <section class="main-content">
+  <section class="card">
       <div class="card-title">Slot 3×3 – Arcade (sans mise de crédits)</div>
       <p style="margin-top:6px;color:rgba(232,236,255,.75);font-size:13px;">
         La “mise” ci-dessous influence la <b>récompense en cas de gain</b>, mais <b>ne retire jamais</b> de crédits si tu ne gagnes pas.
@@ -86,7 +101,9 @@
         </ul>
       </div>
     </section>
-  </main>
+  
+  </section>
+</main>
 
   <footer class="footer">
     <span>Mode arcade : récompense uniquement (aucune perte de crédits sur un échec).</span>
