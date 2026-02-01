@@ -41,7 +41,7 @@ body{
 
 /* ✅ Icône plus grosse + plus de carré mauve (pas de fond/ombre) */
 .logo-img{
-  width:84px; height:84px;          /* ↑ plus gros */
+  width:200px; height:200px;          /* ↑ plus gros */
   object-fit: contain;
   display:block;
   border-radius:0;                  /* pas de tuile arrondie */
@@ -424,3 +424,4 @@ body{
 #btnLogout{
   margin-left: 8px;
 }
+
