@@ -175,3 +175,72 @@ body{
   }
   .cell{ font-size: 36px; }
 }
+
+.tower-wrap{
+  display:grid;
+  gap:12px;
+}
+
+.tower-board{
+  display:grid;
+  gap:12px;
+}
+
+.tower-choices{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  justify-content:center;
+}
+
+.tower-tile{
+  min-width: 140px;
+}
+
+.tower-actions{
+  display:flex;
+  justify-content:center;
+}
+
+.tower-settings{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:flex-end;
+}
+
+.tower-label{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  font-weight:700;
+  color: rgba(232,236,255,.85);
+}
+
+.tower-label input{
+  padding:10px 12px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(15,23,48,.65);
+  color: var(--text);
+  outline:none;
+  width: 140px;
+}
+
+.tower-note{
+  margin:10px 0 0 0;
+  color: rgba(232,236,255,.7);
+  font-size: 12px;
+}
+
+.tower-log{
+  color: rgba(232,236,255,.88);
+  line-height: 1.45;
+}
+
+.tower-muted{
+  color: rgba(232,236,255,.65);
+  text-align:center;
+  padding: 10px 0;
+}
+
