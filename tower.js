@@ -2,11 +2,12 @@
 // - Toutes les tuiles visibles
 // - Ligne active plus claire
 // - 3 SAFE / 1 TRAP par ligne (une seule colonne TRAP)
-// - SAFE = vert, TRAP = rouge
+// - SAFE = vert, TRAP = rouge (même en révélation secondaire)
+// - Anti-bug Chrome : turnId + unlock garanti (finally)
 // - Mode arcade / simulation (score fictif, aucun enjeu réel)
 // - RNG robuste via crypto.getRandomValues
 
-const STORAGE_KEY = "casino_crush_tower_grid_v3";
+const STORAGE_KEY = "casino_crush_tower_grid_v4";
 
 const ROWS = 8;             // lignes
 const COLS = 4;             // colonnes
@@ -50,7 +51,10 @@ const defaultState = {
   trapByRow: Array.from({ length: ROWS }, () => 0),
 
   // history entries: { row, col, result: "SAFE"|"TRAP" }
-  history: []
+  history: [],
+
+  // Token d’action pour éviter les races async (Chrome/rapid clicks)
+  turnId: 0
 };
 
 let state = load();
@@ -65,22 +69,18 @@ function load() {
     if (!raw) return structuredCloneSafe(defaultState);
     const s = JSON.parse(raw);
 
-    // validation minimale (on tolère anciennes versions, fallback si incohérent)
-    if (
-      typeof s.activeRow !== "number" ||
-      !Array.isArray(s.history) ||
-      (!Array.isArray(s.trapByRow) && !Array.isArray(s.safeByRow))
-    ) {
-      return structuredCloneSafe(defaultState);
-    }
+    // validation minimale
+    const ok =
+      typeof s.activeRow === "number" &&
+      Array.isArray(s.history) &&
+      (Array.isArray(s.trapByRow) || Array.isArray(s.safeByRow));
 
-    // Migration simple : si une ancienne version avait safeByRow (1 SAFE),
-    // on reconstruit un trapByRow arbitraire (pour éviter crash).
+    if (!ok) return structuredCloneSafe(defaultState);
+
+    // Migration simple : si ancienne version avait safeByRow (1 SAFE),
+    // on reconstruit trapByRow = une colonne différente de la SAFE
     let trapByRow = s.trapByRow;
     if (!Array.isArray(trapByRow) && Array.isArray(s.safeByRow)) {
-      // ancien modèle : safeByRow = colonne SAFE unique
-      // nouveau modèle : trapByRow = une colonne TRAP
-      // ici on choisit une TRAP différente de la SAFE, au hasard.
       trapByRow = s.safeByRow.map((safeCol) => {
         const choices = [];
         for (let c = 0; c < COLS; c++) if (c !== safeCol) choices.push(c);
@@ -104,18 +104,28 @@ function setState(patch) {
   render();
 }
 
+function bumpTurnId() {
+  // Incrémente pour invalider toute action async en cours
+  return state.turnId + 1;
+}
+
 function resetAll() {
+  const newTurn = bumpTurnId();
   state = structuredCloneSafe(defaultState);
+  state.turnId = newTurn;
   save();
   render();
   ui.hint.textContent = "";
 }
 
 function start() {
+  const newTurn = bumpTurnId();
+
   // Une TRAP par ligne : 3 SAFE / 1 TRAP
   const trapByRow = Array.from({ length: ROWS }, () => randInt(COLS));
 
   setState({
+    turnId: newTurn,
     running: true,
     locked: false,
     activeRow: 0,
@@ -129,7 +139,8 @@ function start() {
 
 function stopRun() {
   if (!state.running) return;
-  setState({ running: false, locked: false });
+  const newTurn = bumpTurnId(); // invalide les awaits en cours
+  setState({ turnId: newTurn, running: false, locked: false });
   ui.hint.textContent = "Run terminée volontairement. Score conservé.";
 }
 
@@ -137,43 +148,64 @@ async function onPick(row, col) {
   if (!state.running || state.locked) return;
   if (row !== state.activeRow) return;
 
-  setState({ locked: true });
+  const myTurn = bumpTurnId();
+  setState({ turnId: myTurn, locked: true });
   ui.hint.textContent = "Révélation…";
 
-  const trapCol = state.trapByRow[row];
-  const isSafe = (col !== trapCol);
+  try {
+    const trapCol = state.trapByRow[row];
+    const isSafe = (col !== trapCol);
 
-  // Révéler la tuile cliquée (SAFE ou TRAP)
-  revealTile(row, col, isSafe ? "SAFE" : "TRAP", false);
+    // Révéler la tuile cliquée
+    revealTile(row, col, isSafe ? "SAFE" : "TRAP", false);
 
-  // Si échec : TRAP (rouge), partie terminée
-  if (!isSafe) {
-    await delay(520);
-    const history = [...state.history, { row, col, result: "TRAP" }];
-    setState({ running: false, locked: false, history });
-    ui.hint.textContent = "Mauvaise case (rouge). Partie terminée.";
-    return;
+    // Si TRAP : fin
+    if (!isSafe) {
+      await delay(520);
+
+      // Si un reset/stop/start est survenu, on abandonne proprement
+      if (state.turnId !== myTurn) return;
+
+      const history = [...state.history, { row, col, result: "TRAP" }];
+      setState({ running: false, locked: false, history });
+      ui.hint.textContent = "Mauvaise case (rouge). Partie terminée.";
+      return;
+    }
+
+    // SAFE : révéler aussi la TRAP en secondaire (et rouge)
+    await delay(260);
+    if (state.turnId !== myTurn) return;
+    revealTile(row, trapCol, "TRAP", true);
+
+    await delay(260);
+    if (state.turnId !== myTurn) return;
+
+    const history = [...state.history, { row, col, result: "SAFE" }];
+    const nextRow = row + 1;
+    const newScore = state.score + POINTS_PER_SAFE;
+
+    // Victoire si dernière ligne
+    if (nextRow >= ROWS) {
+      setState({ score: newScore, running: false, locked: false, history, activeRow: row });
+      ui.hint.textContent = "Tour complétée. Bravo.";
+      return;
+    }
+
+    setState({ score: newScore, activeRow: nextRow, locked: false, history });
+    ui.hint.textContent = "Bonne case (vert). Ligne suivante.";
+  } catch (e) {
+    // Garantit qu’on ne reste jamais coincé sur "Révélation..."
+    console.error("Tower error:", e);
+    if (state.turnId === myTurn) {
+      setState({ locked: false, running: false });
+      ui.hint.textContent = "Erreur technique. Partie arrêtée (prévention de blocage).";
+    }
+  } finally {
+    // Unlock garanti si on est encore sur le même turn et que locked est resté vrai
+    if (state.turnId === myTurn && state.locked) {
+      setState({ locked: false });
+    }
   }
-
-  // SAFE : (optionnel) révéler la TRAP en secondaire pour feedback visuel
-  await delay(260);
-  revealTile(row, trapCol, "TRAP", true); // secondaire = ne doit pas écraser le vert du choix joueur
-
-  await delay(260);
-
-  const history = [...state.history, { row, col, result: "SAFE" }];
-  const nextRow = row + 1;
-  const newScore = state.score + POINTS_PER_SAFE;
-
-  // Victoire si dernière ligne réussie
-  if (nextRow >= ROWS) {
-    setState({ score: newScore, running: false, locked: false, history, activeRow: row });
-    ui.hint.textContent = "Tour complétée. Bravo.";
-    return;
-  }
-
-  setState({ score: newScore, activeRow: nextRow, locked: false, history });
-  ui.hint.textContent = "Bonne case (vert). Ligne suivante.";
 }
 
 function revealTile(row, col, result, secondary) {
@@ -183,14 +215,16 @@ function revealTile(row, col, result, secondary) {
 
   tile.classList.add("reveal");
 
-  // Important : en secondaire, on ne veut pas écraser le vert du choix joueur
-  // => TRAP secondaire : on met le texte TRAP mais sans forcer classe rouge.
   if (result === "SAFE") {
     tile.classList.remove("trap");
     tile.classList.add("safe");
-  } else if (result === "TRAP" && !secondary) {
-    tile.classList.remove("safe");
+  } else if (result === "TRAP") {
+    // ✅ TRAP devient rouge même en secondary
     tile.classList.add("trap");
+    // On n’efface pas "safe" ici : au cas où (rare) une tuile aurait déjà été safe,
+    // mais normalement c'est une tuile distincte. Laisser les deux classes est évité
+    // en CSS si besoin (ou on peut retirer safe, à ta préférence).
+    tile.classList.remove("safe");
   }
 
   const mini = tile.querySelector(".tower-mini");
@@ -213,6 +247,8 @@ function render() {
 
   // Buttons
   ui.btnStop.disabled = !state.running || state.locked;
+  // ✅ évite reset pendant reveal (source fréquente de "locked" coincé)
+  if (ui.btnReset) ui.btnReset.disabled = state.locked;
 
   // Log
   if (state.history.length === 0) {
@@ -231,14 +267,13 @@ function render() {
 function renderGrid() {
   ui.grid.innerHTML = "";
 
-  // Rendu du haut vers le bas pour l’effet “tour”
+  // Rendu du haut vers le bas (effet “tour”)
   for (let row = ROWS - 1; row >= 0; row--) {
     for (let col = 0; col < COLS; col++) {
       const tile = document.createElement("div");
       tile.id = `tile-r${row}-c${col}`;
       tile.className = "tower-tile";
 
-      // Style de ligne (future/active/past)
       if (state.running) {
         if (row === state.activeRow) tile.classList.add("active");
         else if (row > state.activeRow) tile.classList.add("future");
@@ -272,7 +307,7 @@ function renderGrid() {
     }
   }
 
-  // Réappliquer l’historique après re-render
+  // Réappliquer l’historique
   for (const h of state.history) {
     revealTile(h.row, h.col, h.result, false);
   }
@@ -289,7 +324,7 @@ if (ui.btnHideDisclaimer) {
   });
 }
 
-// PWA SW registration (si présent)
+// PWA SW registration
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./service-worker.js").catch(() => {});
