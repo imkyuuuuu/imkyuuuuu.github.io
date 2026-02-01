@@ -1,7 +1,7 @@
 // slot.js (MODULE)
-// Slot 3x3 - Arcade (sans pari de crédits)
+// Slot 3x3 - Arcade
 // - stake modifie la récompense en cas de gain
-// - aucune perte de crédits en cas de non-gain
+// - Perte de crédit immédiate au lancement (mise)
 // - ajoute les crédits au compte Firestore (users/{uid}.credits)
 
 import { addCredits } from "./credits.js";
@@ -9,7 +9,7 @@ import { addCredits } from "./credits.js";
 const ROWS = 3;
 const COLS = 3;
 
-// Symboles (emoji). Tu pourras remplacer par sprites PNG plus tard.
+// Symboles (emoji)
 const SYMBOLS = [
   { key: "CHERRY",  label: "🍒", weight: 26 },
   { key: "LEMON",   label: "🍋", weight: 24 },
@@ -19,7 +19,7 @@ const SYMBOLS = [
   { key: "SEVEN",   label: "7️⃣", weight: 4 },
 ];
 
-// Récompenses de base (avant stake) selon le symbole (3 identiques)
+// Récompenses de base
 const PAYTABLE = {
   CHERRY:  10,
   LEMON:   12,
@@ -29,7 +29,7 @@ const PAYTABLE = {
   SEVEN:   100
 };
 
-// Bonus si plusieurs lignes gagnantes
+// Bonus multi-lignes
 const MULTILINE_BONUS = {
   2: 1.25,
   3: 1.50,
@@ -71,11 +71,18 @@ function setHint(text, ok=null){
   else ui.hint.className = "form-msg";
 }
 
+// Helper pour mettre à jour l'affichage des crédits dans le header/menu
+function updateCreditsUI(amount) {
+    const creditsEl = document.getElementById("userCredits");
+    if (creditsEl && typeof amount === "number") {
+        creditsEl.textContent = String(amount);
+    }
+}
+
 function makeEmptyGrid(){
   return Array.from({ length: ROWS }, () => Array.from({ length: COLS }, () => SYMBOLS[0]));
 }
 
-// RNG pondéré
 function pickSymbol(){
   const total = SYMBOLS.reduce((s,x)=>s+x.weight,0);
   const r = cryptoRandInt(total);
@@ -104,6 +111,7 @@ function renderGrid(grid){
       cell.id = `slot-r${r}-c${c}`;
 
       const big = document.createElement("div");
+      cell.className = "slot-cell"; // Correction duplication class
       big.className = "slot-symbol";
       big.textContent = grid[r][c].label;
 
@@ -118,7 +126,7 @@ function renderGrid(grid){
   }
 }
 
-// Animation simple: plusieurs “frames” puis arrêt sur résultat final
+// --- CŒUR DU JEU MODIFIÉ ---
 async function spin(){
   if (locked) return;
 
@@ -130,33 +138,53 @@ async function spin(){
 
   locked = true;
   ui.btnSpin.disabled = true;
-  setHint("Spin…", null);
   clearHighlights();
-
+  
   const stake = Number(ui.stake.value);
 
-  // Animation : 10 frames
+  // 1. DÉBITER LA MISE AVANT DE LANCER (nombre négatif)
+  setHint(`Mise en jeu de ${stake} crédits...`, null);
+  
+  // On suppose que addCredits accepte les négatifs pour retirer des points
+  // Si le solde tombe sous 0, la transaction Firestore devrait échouer ou retourner !ok
+  const debitRes = await addCredits(user, -stake);
+
+  if (!debitRes || !debitRes.ok) {
+      setHint("Crédits insuffisants ou erreur !", false);
+      locked = false;
+      ui.btnSpin.disabled = false;
+      return; // On arrête tout, les crédits n'ont pas bougé (ou transaction annulée)
+  }
+
+  // Mise à jour immédiate de l'affichage du solde (débité)
+  updateCreditsUI(debitRes.credits);
+  setHint("Spinning...", null);
+
+  // 2. ANIMATION
   for (let i=0; i<10; i++){
     current = randomGrid();
     renderGrid(current);
     await delay(70 + i*10);
   }
 
-  // Résultat final
+  // 3. RÉSULTAT FINAL
   current = randomGrid();
   renderGrid(current);
 
-  // Calcul des gains
+  // 4. CALCUL DES GAINS
   const win = evaluate(current);
 
+  // --- CAS PERDANT ---
   if (!win.lines.length){
-    setHint("Aucune ligne gagnante. Solde inchangé.", null);
+    setHint(`Perdu. La mise de ${stake} est conservée par la maison.`, false);
     locked = false;
     ui.btnSpin.disabled = false;
     return;
   }
 
-  // Gain total = somme paytable des lignes × stake × bonus multi-ligne
+  // --- CAS GAGNANT ---
+  // Gain total = (somme paytable des lignes × stake × bonus)
+  // Note: On a déjà débité la mise au début, donc ici on crédite le GAIN BRUT.
   let base = 0;
   for (const L of win.lines){
     base += PAYTABLE[L.symbolKey] || 0;
@@ -165,20 +193,18 @@ async function spin(){
   const bonusMult = MULTILINE_BONUS[win.lines.length] || 1.0;
   const reward = Math.round(base * stake * bonusMult);
 
-  // Ajout de crédits Firebase
-  const res = await addCredits(user, reward);
+  // Ajout du gain
+  const creditRes = await addCredits(user, reward);
 
-  // UI: surligner les cases gagnantes + lignes overlay
+  // UI: Highlights
   highlightWin(win);
   drawOverlayLines(win.lines);
 
-  if (res?.ok){
-    setHint(`Gagné : +${reward} crédits (stake ${stake}, ${win.lines.length} ligne(s)).`, true);
-    // mettre à jour le badge crédits si présent
-    const creditsEl = document.getElementById("userCredits");
-    if (creditsEl && typeof res.credits === "number") creditsEl.textContent = String(res.credits);
+  if (creditRes?.ok){
+    setHint(`GAGNÉ ! +${reward} crédits (Mise ${stake}).`, true);
+    updateCreditsUI(creditRes.credits);
   } else {
-    setHint("Gain détecté mais erreur lors de l'ajout de crédits (réseau/règles).", false);
+    setHint("Gagné, mais erreur lors de l'ajout des crédits.", false);
   }
 
   locked = false;
@@ -193,10 +219,6 @@ function randomGrid(){
 
 function delay(ms){ return new Promise(r=>setTimeout(r, ms)); }
 
-// Évalue les lignes gagnantes: 3 identiques sur
-// - 3 horizontales
-// - 3 verticales
-// - 2 diagonales
 function evaluate(grid){
   const lines = [];
 
@@ -260,14 +282,10 @@ function drawOverlayLines(lines){
   if (!ui.overlay) return;
   ui.overlay.innerHTML = "";
 
-  // On dessine des "barres" simples (CSS absolute) sur le conteneur.
-  // Cette approche reste robuste sans canvas.
   for (const L of lines){
     const bar = document.createElement("div");
     bar.className = "slot-line";
 
-    // Positions approximatives basées sur grille 3x3
-    // Le CSS gère le centrage.
     if (L.kind === "H"){
       bar.classList.add("h");
       bar.style.top = `${(L.index * 33.333) + 16.666}%`;
