@@ -23,13 +23,16 @@
       </div>
     </div>
     <div class="userbar">
-  <div id="userAuthed" class="userbar-group" style="display:none;">
-    <span class="userbar-label">Connecté :</span>
-    <span id="userPseudo" class="userbar-name">—</span>
-    <span class="userbar-label">Crédits :</span>
-<span id="userCredits" class="userbar-name">—</span>
-    <button id="btnLogout" class="btn secondary userbar-btn">Déconnexion</button>
+<div id="userAuthed" class="userbar-group" style="display:none;">
+  <div class="account-pill">
+    <span id="userPseudo" class="account-name">—</span>
+    <span class="account-sep">•</span>
+    <span class="account-label"><b>Crédits :</b></span>
+    <span id="userCredits" class="account-credits">—</span>
   </div>
+
+  <button id="btnLogout" class="btn secondary userbar-btn">Déconnexion</button>
+</div>
 
   <div id="userAnon" class="userbar-group">
     <a class="btn secondary userbar-btn" href="./login.html">Connexion</a>
@@ -96,6 +99,7 @@
   <script type="module" src="./auth-ui.js"></script>
 </body>
 </html>
+
 
 
 
