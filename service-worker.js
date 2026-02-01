@@ -1,6 +1,6 @@
 // service-worker.js
 
-const CACHE_NAME = "casino-crush-pwa-v12";
+const CACHE_NAME = "casino-crush-pwa-v13";
 
 // IMPORTANT:
 // - Inclure ici seulement les fichiers servis depuis VOTRE domaine GitHub Pages (same-origin).
@@ -117,4 +117,5 @@ self.addEventListener("fetch", (event) => {
     }
   })());
 });
+
 
