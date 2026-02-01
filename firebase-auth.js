@@ -1,76 +1,114 @@
-// firebase-auth.js
+// credits.js
 import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  updateProfile,
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
+  doc,
+  getDoc,
+  setDoc,
+  runTransaction,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
-import { auth } from "./firebase-config.js";
+import { db } from "./firebase-config.js";
 
-// --- validations ---
-function normalizeUsername(u) {
-  const username = (u || "").trim();
-  if (username.length < 3) throw new Error("Le pseudo doit contenir au moins 3 caractères.");
-  if (username.length > 24) throw new Error("Le pseudo doit contenir au plus 24 caractères.");
-  if (!/^[a-zA-Z0-9._-]+$/.test(username)) throw new Error("Caractères permis: lettres, chiffres, . _ -");
-  return username;
+const USERS_COL = "users";
+
+export async function ensureUserDoc(user, initialCredits = 1000) {
+  if (!user) throw new Error("Not authenticated");
+
+  const ref = doc(db, USERS_COL, user.uid);
+  const snap = await getDoc(ref);
+
+  if (snap.exists()) return;
+
+  await setDoc(ref, {
+    displayName: user.displayName || "Utilisateur",
+    credits: initialCredits,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
 }
 
-function usernameToEmail(username) {
-  return `${username}@casino-crush.local`;
+export async function getCredits(user) {
+  if (!user) return null;
+  const ref = doc(db, USERS_COL, user.uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  return typeof data.credits === "number" ? data.credits : null;
 }
 
-function mapAuthError(err) {
-  const code = err?.code || "";
+// Débite uniquement si le solde est suffisant.
+// Retour: { ok:true, credits:newCredits } ou { ok:false, msg, credits }
+export async function spendCredits(user, amount) {
+  if (!user) return { ok: false, msg: "Non connecté." };
+  if (!Number.isInteger(amount) || amount <= 0) return { ok: false, msg: "Montant invalide." };
 
-  if (code === "auth/email-already-in-use") return "Ce pseudo existe déjà.";
-  if (code === "auth/weak-password") return "Mot de passe trop faible (minimum 6 caractères).";
-  if (code === "auth/invalid-email") return "Pseudo invalide (format).";
-  if (code === "auth/invalid-credential") return "Pseudo ou mot de passe incorrect.";
-  if (code === "auth/user-not-found") return "Compte introuvable.";
-  if (code === "auth/network-request-failed") return "Problème réseau. Réessaie.";
-  return "Erreur technique. Réessaie.";
-}
+  const ref = doc(db, USERS_COL, user.uid);
 
-// --- API ---
-export async function signupWithUsername(usernameInput, password) {
   try {
-    const username = normalizeUsername(usernameInput);
-    if (!password || password.length < 6) throw new Error("Le mot de passe doit contenir au moins 6 caractères.");
+    const result = await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists()) {
+        // doc absent -> on le crée avec 0, puis on échoue (ou on initialise)
+        tx.set(ref, {
+          displayName: user.displayName || "Utilisateur",
+          credits: 0,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+        return { ok: false, msg: "Compte crédit non initialisé.", credits: 0 };
+      }
 
-    const email = usernameToEmail(username);
+      const credits = snap.data().credits ?? 0;
+      if (typeof credits !== "number") throw new Error("Invalid credits type");
 
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
+      if (credits < amount) {
+        return { ok: false, msg: "Crédits insuffisants.", credits };
+      }
 
-    // Le displayName servira au bandeau (pseudo)
-    await updateProfile(cred.user, { displayName: username });
+      const newCredits = credits - amount;
+      tx.update(ref, { credits: newCredits, updatedAt: serverTimestamp() });
+      return { ok: true, credits: newCredits };
+    });
 
-    return { ok: true, user: cred.user, username };
-  } catch (err) {
-    const msg = err?.code ? mapAuthError(err) : (err?.message || "Erreur.");
-    return { ok: false, msg };
+    return result;
+  } catch (e) {
+    console.error("spendCredits error:", e);
+    return { ok: false, msg: "Erreur technique (transaction).", credits: null };
   }
 }
 
-export async function loginWithUsername(usernameInput, password) {
+export async function addCredits(user, amount) {
+  if (!user) return { ok: false, msg: "Non connecté." };
+  if (!Number.isInteger(amount) || amount <= 0) return { ok: false, msg: "Montant invalide." };
+
+  const ref = doc(db, USERS_COL, user.uid);
+
   try {
-    const username = normalizeUsername(usernameInput);
-    const email = usernameToEmail(username);
+    const result = await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
 
-    const cred = await signInWithEmailAndPassword(auth, email, password);
+      if (!snap.exists()) {
+        const newCredits = amount;
+        tx.set(ref, {
+          displayName: user.displayName || "Utilisateur",
+          credits: newCredits,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+        return { ok: true, credits: newCredits };
+      }
 
-    return { ok: true, user: cred.user, username: cred.user.displayName || username };
-  } catch (err) {
-    return { ok: false, msg: mapAuthError(err) };
+      const credits = snap.data().credits ?? 0;
+      if (typeof credits !== "number") throw new Error("Invalid credits type");
+
+      const newCredits = credits + amount;
+      tx.update(ref, { credits: newCredits, updatedAt: serverTimestamp() });
+      return { ok: true, credits: newCredits };
+    });
+
+    return result;
+  } catch (e) {
+    console.error("addCredits error:", e);
+    return { ok: false, msg: "Erreur technique (transaction).", credits: null };
   }
-}
-
-export async function logout() {
-  await signOut(auth);
-}
-
-export function onUserChanged(callback) {
-  return onAuthStateChanged(auth, callback);
 }
