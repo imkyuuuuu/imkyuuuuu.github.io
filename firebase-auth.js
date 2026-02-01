@@ -1,114 +1,117 @@
-// credits.js
+// firebase-auth.js
+// Auth Firebase (pseudo + mot de passe) via Email/Password
+// - On conserve l'UX "username + password" en mappant username -> email technique
+// - On met displayName = username
+// - Recommandation: on s'assure qu'un doc Firestore user/credits existe à l'inscription ET à la connexion
+
 import {
-  doc,
-  getDoc,
-  setDoc,
-  runTransaction,
-  serverTimestamp
-} from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
 
-import { db } from "./firebase-config.js";
+import { auth } from "./firebase-config.js";
+import { ensureUserDoc } from "./credits.js";
 
-const USERS_COL = "users";
-
-export async function ensureUserDoc(user, initialCredits = 1000) {
-  if (!user) throw new Error("Not authenticated");
-
-  const ref = doc(db, USERS_COL, user.uid);
-  const snap = await getDoc(ref);
-
-  if (snap.exists()) return;
-
-  await setDoc(ref, {
-    displayName: user.displayName || "Utilisateur",
-    credits: initialCredits,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
-  });
+// ------------------ Helpers ------------------
+function normalizeUsername(u) {
+  const username = (u || "").trim();
+  if (username.length < 3) throw new Error("Le pseudo doit contenir au moins 3 caractères.");
+  if (username.length > 24) throw new Error("Le pseudo doit contenir au plus 24 caractères.");
+  if (!/^[a-zA-Z0-9._-]+$/.test(username)) {
+    throw new Error("Caractères permis: lettres, chiffres, . _ -");
+  }
+  return username;
 }
 
-export async function getCredits(user) {
-  if (!user) return null;
-  const ref = doc(db, USERS_COL, user.uid);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return null;
-  const data = snap.data();
-  return typeof data.credits === "number" ? data.credits : null;
+function usernameToEmail(username) {
+  // Email technique (pas de vérification).
+  // ⚠️ Si un jour tu veux un vrai reset password par email, il faudra demander un vrai email.
+  return `${username}@casino-crush.local`;
 }
 
-// Débite uniquement si le solde est suffisant.
-// Retour: { ok:true, credits:newCredits } ou { ok:false, msg, credits }
-export async function spendCredits(user, amount) {
-  if (!user) return { ok: false, msg: "Non connecté." };
-  if (!Number.isInteger(amount) || amount <= 0) return { ok: false, msg: "Montant invalide." };
+function mapAuthError(err) {
+  const code = err?.code || "";
 
-  const ref = doc(db, USERS_COL, user.uid);
+  // Messages simples (sans jargon) pour l'UI
+  if (code === "auth/email-already-in-use") return "Ce pseudo existe déjà.";
+  if (code === "auth/weak-password") return "Mot de passe trop faible (minimum 6 caractères).";
+  if (code === "auth/invalid-email") return "Pseudo invalide (format).";
+  if (code === "auth/invalid-credential") return "Pseudo ou mot de passe incorrect.";
+  if (code === "auth/user-not-found") return "Compte introuvable.";
+  if (code === "auth/network-request-failed") return "Problème réseau. Réessaie.";
+  if (code === "auth/too-many-requests") return "Trop d’essais. Réessaie plus tard.";
+  return "Erreur technique. Réessaie.";
+}
 
+// ------------------ API ------------------
+
+/**
+ * Inscription avec pseudo + mot de passe.
+ * - crée l'utilisateur email/password
+ * - définit displayName = pseudo
+ * - crée (si absent) le doc Firestore "users/{uid}" avec credits initiaux
+ */
+export async function signupWithUsername(usernameInput, password, initialCredits = 1000) {
   try {
-    const result = await runTransaction(db, async (tx) => {
-      const snap = await tx.get(ref);
-      if (!snap.exists()) {
-        // doc absent -> on le crée avec 0, puis on échoue (ou on initialise)
-        tx.set(ref, {
-          displayName: user.displayName || "Utilisateur",
-          credits: 0,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-        return { ok: false, msg: "Compte crédit non initialisé.", credits: 0 };
-      }
+    const username = normalizeUsername(usernameInput);
 
-      const credits = snap.data().credits ?? 0;
-      if (typeof credits !== "number") throw new Error("Invalid credits type");
+    if (!password || password.length < 6) {
+      throw new Error("Le mot de passe doit contenir au moins 6 caractères.");
+    }
 
-      if (credits < amount) {
-        return { ok: false, msg: "Crédits insuffisants.", credits };
-      }
+    const email = usernameToEmail(username);
 
-      const newCredits = credits - amount;
-      tx.update(ref, { credits: newCredits, updatedAt: serverTimestamp() });
-      return { ok: true, credits: newCredits };
-    });
+    const cred = await createUserWithEmailAndPassword(auth, email, password);
 
-    return result;
-  } catch (e) {
-    console.error("spendCredits error:", e);
-    return { ok: false, msg: "Erreur technique (transaction).", credits: null };
+    // displayName = pseudo (pour l'UI / header)
+    await updateProfile(cred.user, { displayName: username });
+
+    // ✅ Recommandation: s'assurer qu'un doc crédits existe
+    // Note: on attend updateProfile avant pour que displayName soit déjà placé.
+    await ensureUserDoc(cred.user, initialCredits);
+
+    return { ok: true, user: cred.user, username };
+  } catch (err) {
+    const msg = err?.code ? mapAuthError(err) : (err?.message || "Erreur.");
+    return { ok: false, msg };
   }
 }
 
-export async function addCredits(user, amount) {
-  if (!user) return { ok: false, msg: "Non connecté." };
-  if (!Number.isInteger(amount) || amount <= 0) return { ok: false, msg: "Montant invalide." };
-
-  const ref = doc(db, USERS_COL, user.uid);
-
+/**
+ * Connexion avec pseudo + mot de passe.
+ * - connecte l'utilisateur email/password
+ * - crée (si absent) le doc Firestore "users/{uid}" (option recommandé)
+ */
+export async function loginWithUsername(usernameInput, password, initialCredits = 1000) {
   try {
-    const result = await runTransaction(db, async (tx) => {
-      const snap = await tx.get(ref);
+    const username = normalizeUsername(usernameInput);
+    const email = usernameToEmail(username);
 
-      if (!snap.exists()) {
-        const newCredits = amount;
-        tx.set(ref, {
-          displayName: user.displayName || "Utilisateur",
-          credits: newCredits,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-        return { ok: true, credits: newCredits };
-      }
+    const cred = await signInWithEmailAndPassword(auth, email, password);
 
-      const credits = snap.data().credits ?? 0;
-      if (typeof credits !== "number") throw new Error("Invalid credits type");
+    // ✅ Recommandation: s'assurer qu'un doc crédits existe même si compte "ancien"
+    await ensureUserDoc(cred.user, initialCredits);
 
-      const newCredits = credits + amount;
-      tx.update(ref, { credits: newCredits, updatedAt: serverTimestamp() });
-      return { ok: true, credits: newCredits };
-    });
-
-    return result;
-  } catch (e) {
-    console.error("addCredits error:", e);
-    return { ok: false, msg: "Erreur technique (transaction).", credits: null };
+    return { ok: true, user: cred.user, username: cred.user.displayName || username };
+  } catch (err) {
+    return { ok: false, msg: mapAuthError(err) };
   }
+}
+
+/**
+ * Déconnexion.
+ */
+export async function logout() {
+  await signOut(auth);
+}
+
+/**
+ * Observer l'état auth (utile pour la barre UI persistante).
+ * Retourne la fonction "unsubscribe".
+ */
+export function onUserChanged(callback) {
+  return onAuthStateChanged(auth, callback);
 }
