@@ -23,7 +23,7 @@ const POINTS_PER_SAFE = 50; // score interne (non monétaire)
 // 💳 Crédit gameplay (à adapter)
 //
 const ENTRY_COST = 10;       // coût pour démarrer une run
-const REWARD_PER_SAFE = 2;   // récompense en crédits par SAFE
+const REWARD_PER_SAFE = 4;   // récompense en crédits par SAFE
 const WIN_BONUS = 50;        // bonus crédits si tour complétée
 
 function randInt(maxExclusive) {
