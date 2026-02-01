@@ -34,91 +34,51 @@
       <button id="btnHideTowerDisclaimer" class="btn ghost">Masquer</button>
     </section>
 
-    <section class="hud">
-      <div class="hud-item">
-        <div class="hud-label">Étage</div>
-        <div id="towerFloor" class="hud-value">—</div>
-      </div>
-      <div class="hud-item">
-        <div class="hud-label">Score</div>
-        <div id="towerScore" class="hud-value">—</div>
-      </div>
-      <div class="hud-item">
-        <div class="hud-label">Statut</div>
-        <div id="towerStatus" class="hud-value">—</div>
-      </div>
-    </section>
+    <section class="tower-wrap">
+      <div class="tower-board card">
+        <div class="tower-header-row">
+          <div>
+            <div class="card-title">Tower (grille 4 × 8)</div>
+            <div class="tower-sub">
+              Clique une tuile sur la ligne active (plus claire). Vert = réussi, rouge = échec.
+            </div>
+          </div>
+          <div class="tower-actions">
+            <button id="btnStartTower" class="btn primary">Démarrer</button>
+            <button id="btnStopRun" class="btn secondary" disabled>Terminer la run</button>
+          </div>
+        </div>
 
-    <section class="card">
-      <div class="card-title">Paramètres</div>
+        <section class="hud tower-hud">
+          <div class="hud-item">
+            <div class="hud-label">Ligne</div>
+            <div id="towerFloor" class="hud-value">—</div>
+          </div>
+          <div class="hud-item">
+            <div class="hud-label">Score</div>
+            <div id="towerScore" class="hud-value">—</div>
+          </div>
+          <div class="hud-item">
+            <div class="hud-label">Statut</div>
+            <div id="towerStatus" class="hud-value">—</div>
+          </div>
+        </section>
 
-      <div class="tower-settings">
-        <label class="tower-label">
-          Étages
-          <input id="inpFloors" type="number" min="5" max="50" step="1" value="10" />
-        </label>
-
-        <label class="tower-label">
-          Colonnes
-          <input id="inpCols" type="number" min="2" max="6" step="1" value="3" />
-        </label>
-
-        <label class="tower-label">
-          Points / étage
-          <input id="inpPoints" type="number" min="1" max="1000" step="1" value="50" />
-        </label>
-
-        <button id="btnStartTower" class="btn primary">Démarrer</button>
+        <div id="towerGrid" class="tower-grid" aria-label="Grille tower"></div>
+        <div id="towerHint" class="tower-hint"></div>
       </div>
 
-      <p class="tower-note">
-        Probabilité de réussite par étage ≈ 1 / colonnes. RNG : <code>crypto.getRandomValues</code>.
-      </p>
-    </section>
-<section class="tower-wrap">
-  <div class="tower-board card">
-    <div class="tower-header-row">
-      <div>
-        <div class="card-title">Tower (arcade)</div>
-        <div class="tower-sub">Choisis une tuile sur la ligne active. Vert = réussi, rouge = échec.</div>
-      </div>
-      <div class="tower-actions">
-        <a class="btn secondary" href="./index.html">Accueil</a>
-        <button id="btnResetTower" class="btn secondary">Réinitialiser</button>
-      </div>
-    </div>
-
-    <section class="hud tower-hud">
-      <div class="hud-item">
-        <div class="hud-label">Ligne</div>
-        <div id="towerFloor" class="hud-value">—</div>
-      </div>
-      <div class="hud-item">
-        <div class="hud-label">Score</div>
-        <div id="towerScore" class="hud-value">—</div>
-      </div>
-      <div class="hud-item">
-        <div class="hud-label">Statut</div>
-        <div id="towerStatus" class="hud-value">—</div>
+      <div class="card">
+        <div class="card-title">Historique</div>
+        <div id="towerLog" class="tower-log">—</div>
       </div>
     </section>
+  </main>
 
-    <!-- Grille 8 x 4 -->
-    <div id="towerGrid" class="tower-grid" aria-label="Grille tower"></div>
+  <footer class="footer">
+    <span>PWA : fonctionne hors-ligne après la première visite (cache local).</span>
+  </footer>
 
-    <div id="towerHint" class="tower-hint"></div>
-
-    <div class="tower-footer-row">
-      <button id="btnStartTower" class="btn primary">Démarrer</button>
-      <button id="btnStopRun" class="btn secondary" disabled>Terminer la run</button>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-title">Historique</div>
-    <div id="towerLog" class="tower-log">—</div>
-  </div>
-</section>
-
-<script src="tower.js"></script>
-
+  <script src="tower.js"></script>
+</body>
+</html>
