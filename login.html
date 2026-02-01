@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Créer un compte – Casino Crush</title>
+  <title>Connexion – Casino Crush</title>
 
   <meta name="theme-color" content="#0b1020" />
   <link rel="manifest" href="manifest.webmanifest" />
@@ -15,7 +15,7 @@
       <div class="logo">CC</div>
       <div>
         <div class="title">Casino Crush</div>
-        <div class="subtitle">Créer un compte</div>
+        <div class="subtitle">Connexion</div>
       </div>
     </div>
 
@@ -36,9 +36,9 @@
 
   <main class="container">
     <section class="card">
-      <div class="card-title">Créer un compte</div>
+      <div class="card-title">Connexion</div>
       <p style="margin-top:6px;color:rgba(232,236,255,.75);font-size:13px;">
-        Aucun courriel requis. Le pseudo sert d’identifiant.
+        Entre ton pseudo et ton mot de passe.
       </p>
 
       <div class="form-grid">
@@ -57,14 +57,14 @@
           <input id="inpPassword"
                  class="form-input"
                  type="password"
-                 placeholder="Minimum 6 caractères"
-                 autocomplete="new-password" />
+                 placeholder="Ton mot de passe"
+                 autocomplete="current-password" />
         </label>
 
-        <button id="btnSignup" class="btn primary">Créer</button>
+        <button id="btnLogin" class="btn primary">Se connecter</button>
 
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <a class="btn secondary" href="./login.html">J’ai déjà un compte</a>
+          <a class="btn secondary" href="./signup.html">Créer un compte</a>
           <a class="btn secondary" href="./index.html">Retour à l’accueil</a>
         </div>
       </div>
@@ -79,12 +79,12 @@
 
   <script type="module">
     import "./auth-ui.js";
-    import { signupWithUsername } from "./firebase-auth.js";
+    import { loginWithUsername } from "./firebase-auth.js";
 
     const u = document.getElementById("inpUsername");
     const p = document.getElementById("inpPassword");
     const msg = document.getElementById("msg");
-    const btn = document.getElementById("btnSignup");
+    const btn = document.getElementById("btnLogin");
 
     function setMsg(text, ok){
       msg.textContent = text;
@@ -100,12 +100,12 @@
       msg.textContent = "";
       btn.disabled = true;
       try{
-        const res = await signupWithUsername(u.value, p.value);
+        const res = await loginWithUsername(u.value, p.value);
         if (!res.ok) {
           setMsg(res.msg, false);
           return;
         }
-        setMsg(`Compte créé. Connecté en tant que ${res.username}.`, true);
+        setMsg(`Connecté en tant que ${res.username}.`, true);
         window.location.href = "./index.html";
       } catch (e) {
         console.error(e);
