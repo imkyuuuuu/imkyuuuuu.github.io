@@ -504,6 +504,30 @@ body{
   }
 }
 
+.avatar-sprite{
+  width: 512px;
+  height: 512px;
+  background-repeat: no-repeat;
+  background-size: 2048px 1536px; /* 4 cols * 512, 3 rows * 512 */
+  image-rendering: auto;
+  filter: drop-shadow(0 18px 32px rgba(0,0,0,.35));
+  will-change: background-position;
+}
+
+/* Mobile: éviter que 512 prenne trop de place */
+@media (max-width: 520px){
+  .avatar-sprite{
+    width: 320px;
+    height: 320px;
+    background-size: 1280px 960px; /* 4*320, 3*320 (si on scale) */
+  }
+}
+
+/* Accessibilité: réduire animation si l'utilisateur le demande */
+@media (prefers-reduced-motion: reduce){
+  .avatar-sprite{ animation: none !important; }
+}
+
 
 
 
