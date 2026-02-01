@@ -3,11 +3,14 @@ const CACHE_NAME = "casino-crush-pwa-v1";
 const ASSETS = [
   "./",
   "./index.html",
+  "./tower.html",
   "./styles.css",
   "./app.js",
+  "./tower.js",
   "./manifest.webmanifest",
+  "./service-worker.js",
   "./icons/icon-192.png",
-  "./icons/icon-512.png"
+  "./icons/icon-512.png",
 ];
 
 self.addEventListener("install", (event) => {
@@ -33,3 +36,4 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+
