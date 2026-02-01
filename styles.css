@@ -36,16 +36,21 @@ body{
   overflow: visible;
 }
 
-.brand{ display:flex; gap:12px; align-items:center; }
+/* ✅ Brand: si tu enlèves le texte "Casino Crush", on évite un gap inutile */
+.brand{ display:flex; gap:0; align-items:center; }
+
+/* ✅ Icône plus grosse + plus de carré mauve (pas de fond/ombre) */
 .logo-img{
-  width:64px; height:64px;
+  width:84px; height:84px;          /* ↑ plus gros */
   object-fit: contain;
-  display:block; place-items:center;
-  border-radius:14px;
-  background: linear-gradient(135deg, rgba(124,58,237,.9), rgba(37,99,235,.9));
-  box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  display:block;
+  border-radius:0;                  /* pas de tuile arrondie */
+  background: none;                 /* enlève le fond mauve */
+  box-shadow: none;                 /* enlève l'ombre de tuile */
+  padding: 0;
   font-weight:800;
 }
+
 .title{ font-weight:800; font-size:18px; line-height:1.1; }
 .subtitle{ color: rgba(232,236,255,.75); font-size:12px; margin-top:2px; }
 
@@ -409,4 +414,13 @@ body{
   color: rgba(232,236,255,.35);
 }
 
+/* ✅ Espace entre le pill "Admin • Crédits" et le bouton Déconnexion */
+.userbar-group{
+  display:flex;
+  align-items:center;
+  gap:16px;
+}
 
+#btnLogout{
+  margin-left: 8px;
+}
