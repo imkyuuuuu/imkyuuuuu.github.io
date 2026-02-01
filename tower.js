@@ -1,30 +1,19 @@
 // tower.js (MODULE)
 // Tower – grille 4x8
-// - 3 SAFE / 1 TRAP par ligne
-// - SAFE = vert, TRAP = rouge (y compris en révélation secondaire)
-// - Anti-bug Chrome : turnId + unlock garanti (finally)
+// - Mise au départ (débit immédiat)
+// - Gains accumulés selon le niveau atteint (Cashout manuel)
+// - Perte totale si TRAP
 // - Intégration crédits Firebase (Firestore) via credits.js
-//
-// Pré-requis:
-// - auth-ui.js expose window.CC_CURRENT_USER (Firebase user) quand connecté
-// - credits.js fournit spendCredits/addCredits (transactions Firestore)
-// - tower.html doit charger ce fichier en <script type="module" src="./tower.js"></script>
 
 import { spendCredits, addCredits } from "./credits.js";
 
-const STORAGE_KEY = "casino_crush_tower_grid_v6";
+const STORAGE_KEY = "casino_crush_tower_grid_v7_stake"; // Nouvelle clé versionnée
 
 const ROWS = 8;
-const COLS = 4;
+const COLS = 4; // On garde ta grille 4 colonnes
 
-const POINTS_PER_SAFE = 50; // score interne (non monétaire)
-
-//
-// 💳 Crédit gameplay (à adapter)
-//
-const ENTRY_COST = 10;       // coût pour démarrer une run
-const REWARD_PER_SAFE = 4;   // récompense en crédits par SAFE
-const WIN_BONUS = 50;        // bonus crédits si tour complétée
+// Multiplicateurs demandés (Index 0 = Ligne 1 complétée)
+const MULTIPLIERS = [1.27, 1.7, 2.27, 3.03, 4.04, 5.39, 7.19, 9.58];
 
 function randInt(maxExclusive) {
   const a = new Uint32Array(1);
@@ -38,14 +27,15 @@ function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 const ui = {
   grid: el("towerGrid"),
   floor: el("towerFloor"),
-  score: el("towerScore"),
+  score: el("towerScore"), // Affichera le gain potentiel
   status: el("towerStatus"),
   hint: el("towerHint"),
   log: el("towerLog"),
+  stakeInput: el("towerStake"), // L'input pour la mise
 
   btnStart: el("btnStartTower"),
   btnReset: el("btnResetTower"),
-  btnStop: el("btnStopRun"),
+  btnStop: el("btnStopRun"), // Bouton "Encaisser"
 
   disclaimer: el("towerDisclaimer"),
   btnHideDisclaimer: el("btnHideTowerDisclaimer")
@@ -56,8 +46,9 @@ const defaultState = {
   running: false,
   locked: false,
 
-  activeRow: 0, // 0=bas, 7=haut
-  score: 0,
+  stake: 10,       // Mise de la partie en cours
+  activeRow: 0,    // 0=bas, 7=haut
+  score: 0,        // Gain potentiel actuel
 
   // trapByRow[row] = colonne TRAP (0..3), les autres sont SAFE
   trapByRow: Array.from({ length: ROWS }, () => 0),
@@ -65,7 +56,6 @@ const defaultState = {
   // { row, col, result: "SAFE"|"TRAP" }
   history: [],
 
-  // anti-race async
   turnId: 0
 };
 
@@ -84,21 +74,10 @@ function load() {
     const ok =
       typeof s.activeRow === "number" &&
       Array.isArray(s.history) &&
-      (Array.isArray(s.trapByRow) || Array.isArray(s.safeByRow));
+      Array.isArray(s.trapByRow);
 
     if (!ok) return structuredCloneSafe(defaultState);
-
-    // Migration : ancienne version safeByRow -> trapByRow
-    let trapByRow = s.trapByRow;
-    if (!Array.isArray(trapByRow) && Array.isArray(s.safeByRow)) {
-      trapByRow = s.safeByRow.map((safeCol) => {
-        const choices = [];
-        for (let c = 0; c < COLS; c++) if (c !== safeCol) choices.push(c);
-        return choices[randInt(choices.length)];
-      });
-    }
-
-    return { ...structuredCloneSafe(defaultState), ...s, trapByRow };
+    return { ...structuredCloneSafe(defaultState), ...s };
   } catch {
     return structuredCloneSafe(defaultState);
   }
@@ -137,29 +116,35 @@ function resetAll() {
   if (ui.hint) ui.hint.textContent = "";
 }
 
+// --- DÉMARRAGE DU JEU ---
 async function start() {
   const user = getCurrentUser();
   if (!user) {
     ui.hint.textContent = "Tu dois être connecté pour jouer.";
-    // Optionnel: rediriger automatiquement
-    // window.location.href = "./login.html";
     return;
   }
 
-  // Empêcher double-start
   if (state.locked) return;
 
+  // 1. Récupération de la mise depuis l'input
+  let inputStake = 10;
+  if (ui.stakeInput) {
+    inputStake = parseInt(ui.stakeInput.value, 10);
+  }
+  
+  if (isNaN(inputStake) || inputStake < 1 || inputStake > 1000) {
+    ui.hint.textContent = "Mise invalide (Min 1, Max 1000).";
+    return;
+  }
+
   const newTurn = bumpTurnId();
-  setState({
-    turnId: newTurn,
-    locked: true
-  });
+  setState({ turnId: newTurn, locked: true });
   ui.hint.textContent = "Vérification des crédits…";
 
-  // Débit d'entrée (transaction)
-  const spend = await spendCredits(user, ENTRY_COST);
+  // 2. Débit de la mise (Transaction Firestore)
+  const spend = await spendCredits(user, inputStake);
+  
   if (!spend.ok) {
-    // Déverrouille et n’initie pas la partie
     setState({ locked: false, running: false });
     ui.hint.textContent = spend.msg || "Crédits insuffisants.";
     if (typeof spend.credits === "number") setCreditsUI(spend.credits);
@@ -169,137 +154,169 @@ async function start() {
   // Mise à jour UI crédits
   if (typeof spend.credits === "number") setCreditsUI(spend.credits);
 
-  // Une TRAP par ligne => 3 SAFE / 1 TRAP
+  // Génération des pièges (1 piège sur 4 colonnes)
   const trapByRow = Array.from({ length: ROWS }, () => randInt(COLS));
 
   setState({
     running: true,
     locked: false,
     activeRow: 0,
-    score: 0,
+    stake: inputStake, // On sauvegarde la mise pour le calcul des gains
+    score: 0,          // Pas de gain au départ (mise déjà perdue si on stop row 0)
     trapByRow,
     history: []
   });
 
-  ui.hint.textContent = `Partie démarrée (-${ENTRY_COST} crédits). Clique une tuile sur la ligne active.`;
+  ui.hint.textContent = `Mise de ${inputStake} placée. Grimpez !`;
 }
 
-function stopRun() {
-  if (!state.running) return;
-  const newTurn = bumpTurnId(); // invalide les awaits en cours
-  setState({ turnId: newTurn, running: false, locked: false });
-  ui.hint.textContent = "Run terminée volontairement. Score conservé.";
+// --- CASHOUT (STOP) ---
+async function stopRun() {
+  if (!state.running || state.locked) return;
+  
+  // Si le joueur n'a pas passé au moins la première ligne
+  if (state.activeRow === 0) {
+    ui.hint.textContent = "Vous devez valider au moins une ligne pour encaisser.";
+    return;
+  }
+
+  const user = getCurrentUser();
+  const currentReward = state.score; // Le score contient le gain potentiel calculé
+  const newTurn = bumpTurnId();
+  
+  setState({ turnId: newTurn, locked: true });
+  ui.hint.textContent = `Encaissement de ${currentReward} crédits...`;
+
+  // Créditer le gain
+  const addRes = await addCredits(user, currentReward);
+  
+  if (addRes?.ok && typeof addRes.credits === "number") setCreditsUI(addRes.credits);
+
+  setState({ 
+    running: false, 
+    locked: false,
+    history: [...state.history, { row: state.activeRow, col: -1, result: "CASHOUT" }] // Marqueur historique
+  });
+
+  ui.hint.textContent = `Bravo ! Vous avez encaissé ${currentReward} crédits.`;
 }
 
+// --- CLIC TUILE ---
 async function onPick(row, col) {
   if (!state.running || state.locked) return;
   if (row !== state.activeRow) return;
 
   const user = getCurrentUser();
   if (!user) {
-    // si l’utilisateur s’est déconnecté en cours de run
     setState({ running: false, locked: false });
-    ui.hint.textContent = "Session expirée. Reconnecte-toi.";
+    ui.hint.textContent = "Session expirée.";
     return;
   }
 
   const myTurn = bumpTurnId();
   setState({ turnId: myTurn, locked: true });
-  ui.hint.textContent = "Révélation…";
+  
+  // Pas de message de chargement pour garder le flow rapide, juste le lock visuel
 
   try {
     const trapCol = state.trapByRow[row];
     const isSafe = (col !== trapCol);
 
-    // Révéler la tuile cliquée
+    // Révéler la tuile
     revealTile(row, col, isSafe ? "SAFE" : "TRAP", false);
 
-    // TRAP : fin de partie
+    // --- PERDU (TRAP) ---
     if (!isSafe) {
-      // Révéler aussi la TRAP (déjà rouge) et éventuellement les autres, si tu veux
-      await delay(520);
+      await delay(500);
       if (state.turnId !== myTurn) return;
 
+      // On montre où était le bon chemin (les autres cases safe) ou juste le piège
+      // Ici on montre tout la ligne pour comprendre
+      for(let c=0; c<COLS; c++) {
+          if (c !== col) revealTile(row, c, c === trapCol ? "TRAP" : "SAFE", true); // Secondaire
+      }
+
       const history = [...state.history, { row, col, result: "TRAP" }];
-      setState({ running: false, locked: false, history });
-      ui.hint.textContent = "Mauvaise case (rouge). Partie terminée.";
+      setState({ running: false, locked: false, history, score: 0 });
+      ui.hint.textContent = `BOUM ! Vous perdez votre mise de ${state.stake}.`;
       return;
     }
 
-    // SAFE : révéler la TRAP en secondaire (rouge également)
-    await delay(260);
-    if (state.turnId !== myTurn) return;
-    revealTile(row, trapCol, "TRAP", true);
+    // --- GAGNÉ (SAFE) ---
+    // On ne crédite RIEN ici. On calcule juste le nouveau potentiel.
+    
+    // Calcul du nouveau gain potentiel selon la ligne VIENT d'être franchie (row + 1 correspond à l'index table)
+    // Row 0 finie = Index 0 dans Multipliers (x1.27)
+    const multiplier = MULTIPLIERS[row]; 
+    const potentialWin = Math.floor(state.stake * multiplier);
 
-    // Reward crédits (par SAFE)
-    const addRes = await addCredits(user, REWARD_PER_SAFE);
-    if (addRes?.ok && typeof addRes.credits === "number") setCreditsUI(addRes.credits);
-
-    await delay(260);
+    await delay(200);
     if (state.turnId !== myTurn) return;
 
     const history = [...state.history, { row, col, result: "SAFE" }];
     const nextRow = row + 1;
-    const newScore = state.score + POINTS_PER_SAFE;
 
-    // Victoire si dernière ligne
+    // VICTOIRE TOTALE (Dernière ligne finie)
     if (nextRow >= ROWS) {
-      // Bonus victoire
-      const winRes = await addCredits(user, WIN_BONUS);
+      // Auto-cashout du max
+      const winRes = await addCredits(user, potentialWin);
       if (winRes?.ok && typeof winRes.credits === "number") setCreditsUI(winRes.credits);
 
       setState({
-        score: newScore,
+        score: potentialWin,
         running: false,
         locked: false,
         history,
         activeRow: row
       });
 
-      ui.hint.textContent = `Tour complétée (+${WIN_BONUS} crédits). Bravo.`;
+      ui.hint.textContent = `SOMMET ATTEINT ! Jackpot de ${potentialWin} crédits (x${MULTIPLIERS[ROWS-1]}) !`;
       return;
     }
 
-    // Continuer
+    // CONTINUER
     setState({
-      score: newScore,
+      score: potentialWin, // Mise à jour du "Score" visible (c'est le gain potentiel)
       activeRow: nextRow,
       locked: false,
       history
     });
 
-    ui.hint.textContent = `Bonne case (vert) (+${REWARD_PER_SAFE} crédits). Ligne suivante.`;
+    ui.hint.textContent = `Niveau ${row+1} validé. Gain potentiel: ${potentialWin}. Continuez ou Encaissez.`;
+
   } catch (e) {
     console.error("Tower error:", e);
     if (state.turnId === myTurn) {
       setState({ locked: false, running: false });
-      ui.hint.textContent = "Erreur technique. Partie arrêtée (prévention de blocage).";
+      ui.hint.textContent = "Erreur technique.";
     }
   } finally {
-    // Unlock garanti si on est encore sur le même turn
     if (state.turnId === myTurn && state.locked) {
       setState({ locked: false });
     }
   }
 }
 
-function revealTile(row, col, result) {
+function revealTile(row, col, result, secondary) {
   const id = `tile-r${row}-c${col}`;
   const tile = document.getElementById(id);
   if (!tile) return;
 
   tile.classList.add("reveal");
+  if (secondary) tile.classList.add("secondary-reveal"); // CSS opacité réduite si tu veux
 
   if (result === "SAFE") {
     tile.classList.remove("trap");
     tile.classList.add("safe");
   } else if (result === "TRAP") {
     tile.classList.remove("safe");
-    tile.classList.add("trap"); // ✅ rouge même si “secondaire”
+    tile.classList.add("trap");
   }
 
   const mini = tile.querySelector(".tower-mini");
-  if (mini) mini.textContent = result;
+  // Affiche le multi si on veut, ou juste un emoji
+  if (mini && !secondary && result === "SAFE") mini.textContent = "✓"; 
+  if (mini && result === "TRAP") mini.textContent = "💣";
 }
 
 function render() {
@@ -309,31 +326,38 @@ function render() {
   }
 
   // HUD
-  if (ui.score) ui.score.textContent = String(state.score);
+  if (ui.score) ui.score.textContent = state.score > 0 ? `${state.score} 💎` : "0";
+  
   if (ui.status) {
-    ui.status.textContent = state.running
-      ? (state.locked ? "Révélation…" : "En cours")
-      : (state.history.length ? "Terminé" : "Prêt");
+    if (state.running) {
+        ui.status.textContent = `En jeu (Mise: ${state.stake})`;
+        ui.status.className = "status-running";
+    } else {
+        ui.status.textContent = "Prêt";
+        ui.status.className = "";
+    }
   }
 
   if (ui.floor) ui.floor.textContent = state.running ? `${state.activeRow + 1} / ${ROWS}` : "—";
+  
+  // Input Mise (Désactivé si en jeu)
+  if (ui.stakeInput) ui.stakeInput.disabled = state.running;
 
   // Buttons
-  if (ui.btnStop) ui.btnStop.disabled = !state.running || state.locked;
-  if (ui.btnReset) ui.btnReset.disabled = state.locked; // évite reset pendant reveal
-  if (ui.btnStart) ui.btnStart.disabled = state.locked; // évite double start pendant spendCredits
-
-  // Log
-  if (ui.log) {
-    if (state.history.length === 0) {
-      ui.log.textContent = "—";
-    } else {
-      ui.log.innerHTML = state.history
-        .slice(-16)
-        .map(h => `Ligne ${h.row + 1} : case ${h.col + 1} → ${h.result === "SAFE" ? "✅ SAFE" : "🟥 TRAP"}`)
-        .join("<br/>");
-    }
+  // Le bouton Stop devient "Encaisser" et n'est actif que si on a joué > 0 ligne
+  if (ui.btnStop) {
+      ui.btnStop.disabled = !state.running || state.locked || state.activeRow === 0;
+      if (state.running && state.activeRow > 0) {
+          ui.btnStop.textContent = `ENCAISSER ${state.score}`;
+          ui.btnStop.classList.add("btn-cashout-active"); // Ajoute du style vert/brillant en CSS
+      } else {
+          ui.btnStop.textContent = "ENCAISSER";
+          ui.btnStop.classList.remove("btn-cashout-active");
+      }
   }
+
+  if (ui.btnReset) ui.btnReset.disabled = state.locked;
+  if (ui.btnStart) ui.btnStart.disabled = state.locked || state.running;
 
   renderGrid();
   save();
@@ -341,11 +365,18 @@ function render() {
 
 function renderGrid() {
   if (!ui.grid) return;
-
   ui.grid.innerHTML = "";
 
-  // Rendu du haut vers le bas (effet tour)
+  // Rendu du haut vers le bas
   for (let row = ROWS - 1; row >= 0; row--) {
+    
+    // Ajout d'une étiquette de Multiplicateur à gauche de la ligne (optionnel, nécessite CSS)
+    const rowLabel = document.createElement("div");
+    rowLabel.className = "tower-row-label";
+    rowLabel.textContent = `x${MULTIPLIERS[row]}`;
+    // ui.grid étant probablement un grid/flex, il vaut mieux intégrer le label dans la tuile ou gérer le CSS de la grille.
+    // Pour ne pas casser ton CSS existant, je n'insère pas de wrapper de ligne, mais on peut afficher le multi dans les tuiles futures.
+
     for (let col = 0; col < COLS; col++) {
       const tile = document.createElement("div");
       tile.id = `tile-r${row}-c${col}`;
@@ -366,11 +397,18 @@ function renderGrid() {
       inner.className = "tower-inner";
 
       const main = document.createElement("div");
-      main.textContent = ""; // look “bouton”
+      // Affiche le multi sur les cases futures pour info
+      if (state.running && row >= state.activeRow) {
+         main.textContent = `x${MULTIPLIERS[row]}`;
+         main.style.fontSize = "0.7em";
+         main.style.opacity = "0.6";
+      } else {
+         main.textContent = "";
+      }
+
       const mini = document.createElement("div");
       mini.className = "tower-mini";
-      mini.textContent = (state.running && row === state.activeRow) ? `Ligne ${row + 1}` : "";
-
+      
       inner.appendChild(main);
       inner.appendChild(mini);
       tile.appendChild(inner);
@@ -384,9 +422,11 @@ function renderGrid() {
     }
   }
 
-  // Réappliquer l'historique
+  // Réappliquer l'historique visuel
   for (const h of state.history) {
-    revealTile(h.row, h.col, h.result);
+    if (h.result !== "CASHOUT") {
+        revealTile(h.row, h.col, h.result, false);
+    }
   }
 }
 
@@ -398,13 +438,6 @@ if (ui.btnStop) ui.btnStop.addEventListener("click", stopRun);
 if (ui.btnHideDisclaimer) {
   ui.btnHideDisclaimer.addEventListener("click", () => {
     setState({ showDisclaimer: false });
-  });
-}
-
-// PWA SW registration (si présent)
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./service-worker.js").catch(() => {});
   });
 }
 
