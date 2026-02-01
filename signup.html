@@ -1,36 +1,119 @@
-// auth-ui.js
-import { onUserChanged, logout } from "./firebase-auth.js";
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Créer un compte – Casino Crush</title>
 
-function el(id) { return document.getElementById(id); }
+  <meta name="theme-color" content="#0b1020" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">CC</div>
+      <div>
+        <div class="title">Casino Crush</div>
+        <div class="subtitle">Créer un compte</div>
+      </div>
+    </div>
 
-function setUserBar(user) {
-  const userNameEl = el("userPseudo");
-  const userAuthedEl = el("userAuthed");
-  const userAnonEl = el("userAnon");
+    <!-- User bar persistante -->
+    <div class="userbar">
+      <div id="userAuthed" class="userbar-group" style="display:none;">
+        <span class="userbar-label">Connecté :</span>
+        <span id="userPseudo" class="userbar-name">—</span>
+        <button id="btnLogout" class="btn secondary userbar-btn">Déconnexion</button>
+      </div>
 
-  if (!userNameEl || !userAuthedEl || !userAnonEl) return;
+      <div id="userAnon" class="userbar-group">
+        <a class="btn secondary userbar-btn" href="./login.html">Connexion</a>
+        <a class="btn primary userbar-btn" href="./signup.html">Créer un compte</a>
+      </div>
+    </div>
+  </header>
 
-  if (user) {
-    userNameEl.textContent = user.displayName || "Utilisateur";
-    userAuthedEl.style.display = "flex";
-    userAnonEl.style.display = "none";
-  } else {
-    userAuthedEl.style.display = "none";
-    userAnonEl.style.display = "flex";
-  }
-}
+  <main class="container">
+    <section class="card">
+      <div class="card-title">Créer un compte</div>
+      <p style="margin-top:6px;color:rgba(232,236,255,.75);font-size:13px;">
+        Aucun courriel requis. Le pseudo sert d’identifiant.
+      </p>
 
-function wireLogout() {
-  const btn = el("btnLogout");
-  if (!btn) return;
+      <div class="form-grid">
+        <label class="form-label">
+          Pseudo
+          <input id="inpUsername"
+                 class="form-input"
+                 type="text"
+                 placeholder="ex: Alex_01"
+                 autocomplete="username"
+                 inputmode="text" />
+        </label>
 
-  btn.addEventListener("click", async () => {
-    try { await logout(); } catch {}
-    window.location.href = "./index.html";
-  });
-}
+        <label class="form-label">
+          Mot de passe
+          <input id="inpPassword"
+                 class="form-input"
+                 type="password"
+                 placeholder="Minimum 6 caractères"
+                 autocomplete="new-password" />
+        </label>
 
-window.addEventListener("load", () => {
-  wireLogout();
-  onUserChanged((user) => setUserBar(user));
-});
+        <button id="btnSignup" class="btn primary">Créer</button>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <a class="btn secondary" href="./login.html">J’ai déjà un compte</a>
+          <a class="btn secondary" href="./index.html">Retour à l’accueil</a>
+        </div>
+      </div>
+
+      <div id="msg" class="form-msg"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>Les comptes sont gérés via Firebase Authentication.</span>
+  </footer>
+
+  <script type="module">
+    import "./auth-ui.js";
+    import { signupWithUsername } from "./firebase-auth.js";
+
+    const u = document.getElementById("inpUsername");
+    const p = document.getElementById("inpPassword");
+    const msg = document.getElementById("msg");
+    const btn = document.getElementById("btnSignup");
+
+    function setMsg(text, ok){
+      msg.textContent = text;
+      msg.className = ok ? "form-msg ok" : "form-msg error";
+    }
+
+    // Enter => submit
+    [u, p].forEach(inp => inp.addEventListener("keydown", (e) => {
+      if(e.key === "Enter") btn.click();
+    }));
+
+    btn.addEventListener("click", async () => {
+      msg.textContent = "";
+      btn.disabled = true;
+      try{
+        const res = await signupWithUsername(u.value, p.value);
+        if (!res.ok) {
+          setMsg(res.msg, false);
+          return;
+        }
+        setMsg(`Compte créé. Connecté en tant que ${res.username}.`, true);
+        window.location.href = "./index.html";
+      } catch (e) {
+        console.error(e);
+        setMsg("Erreur technique. Réessaie.", false);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
