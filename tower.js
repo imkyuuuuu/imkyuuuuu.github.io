@@ -132,8 +132,8 @@ async function start() {
     inputStake = parseInt(ui.stakeInput.value, 10);
   }
   
-  if (isNaN(inputStake) || inputStake < 1 || inputStake > 1000) {
-    ui.hint.textContent = "Mise invalide (Min 1, Max 1000).";
+  if (isNaN(inputStake) || inputStake < 1 || inputStake > 100000) {
+    ui.hint.textContent = "Mise invalide (Min 1, Max 100000).";
     return;
   }
 
