@@ -11,33 +11,40 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">
-      <div class="logo">CC</div>
-      <div>
-        <div class="title">Casino Crush</div>
-        <div class="subtitle">Créer un compte</div>
-      </div>
-    </div>
-
-    <!-- User bar persistante -->
-    <div class="userbar">
-<div id="userAuthed" class="userbar-group" style="display:none;">
-  <div class="account-pill">
-    <span id="userPseudo" class="account-name">—</span>
-    <span class="account-sep">•</span>
-    <span class="account-label"><b>Crédits :</b></span>
-    <span id="userCredits" class="account-credits">—</span>
+  <!-- Logo seul (plus gros, pas de texte à droite) -->
+  <div class="brand">
+    <img class="logo-img" src="./icons/icon-512.png" alt="Casino Crush" />
   </div>
 
-  <button id="btnLogout" class="btn secondary userbar-btn">Déconnexion</button>
-</div>
-
-      <div id="userAnon" class="userbar-group">
-        <a class="btn secondary userbar-btn" href="./login.html">Connexion</a>
-        <a class="btn primary userbar-btn" href="./signup.html">Créer un compte</a>
+  <div class="userbar">
+    <div id="userAuthed" class="userbar-group" style="display:none;">
+      <div class="account-pill">
+        <span id="userPseudo" class="account-name">—</span>
+        <span class="account-sep">•</span>
+        <span class="account-label"><b>Crédits :</b></span>
+        <span id="userCredits" class="account-credits">—</span>
       </div>
+
+      <!-- Espace léger supplémentaire avant Déconnexion -->
+      <button id="btnLogout" class="btn secondary userbar-btn" style="margin-left:10px;">
+        Déconnexion
+      </button>
     </div>
-  </header>
+
+    <div id="userAnon" class="userbar-group">
+      <a class="btn secondary userbar-btn" href="./login.html">Connexion</a>
+      <a class="btn primary userbar-btn" href="./signup.html">Créer un compte</a>
+    </div>
+  </div>
+
+  <nav class="nav">
+    <button id="btnInstall" class="btn secondary" hidden>Installer</button>
+    <button id="btnReset" class="btn secondary">Réinitialiser</button>
+    <a class="btn secondary" href="./tower.html">Tower</a>
+    <a class="btn primary" href="./slot.html">Slot 3×3</a>
+  </nav>
+</header>
+
 
   <main class="container">
     <section class="card">
