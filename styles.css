@@ -34,6 +34,165 @@ body{
   top: 0;
   z-index: 10;
 }
+/* ---------- Tower : style grille 4x8 (toutes tuiles visibles) ---------- */
+
+.tower-wrap{
+  display:grid;
+  gap:12px;
+}
+
+.tower-board{
+  display:grid;
+  gap:12px;
+}
+
+.tower-header-row{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.tower-sub{
+  color: rgba(232,236,255,.7);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.tower-footer-row{
+  display:flex;
+  gap:10px;
+  justify-content:space-between;
+  flex-wrap:wrap;
+}
+
+/* Grille : 8 lignes x 4 colonnes */
+.tower-grid{
+  display:grid;
+  gap:10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* 8 rangées visibles, hauteur stable */
+}
+
+/* Une tuile */
+.tower-tile{
+  position:relative;
+  height: 72px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.10);
+  background:
+    linear-gradient(180deg, rgba(20,28,52,.85), rgba(13,18,36,.85));
+  overflow:hidden;
+  cursor:pointer;
+  user-select:none;
+  display:grid;
+  place-items:center;
+  transition: transform 90ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+/* Texture “stone” simple (sans image) */
+.tower-tile::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  opacity:.16;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(255,255,255,.18), transparent 50%),
+    radial-gradient(circle at 70% 60%, rgba(255,255,255,.10), transparent 55%),
+    linear-gradient(135deg, rgba(255,255,255,.06), transparent 60%);
+  pointer-events:none;
+}
+
+/* Etat verrouillé */
+.tower-tile[aria-disabled="true"]{
+  cursor:not-allowed;
+  opacity:.92;
+}
+
+/* Lignes futures (plus sombres) */
+.tower-tile.future{
+  background: linear-gradient(180deg, rgba(14,20,40,.80), rgba(9,12,26,.88));
+  border-color: rgba(255,255,255,.08);
+  opacity:.78;
+}
+
+/* Lignes passées (légèrement confirmées) */
+.tower-tile.past{
+  opacity:.90;
+}
+
+/* Ligne active (plus claire) */
+.tower-tile.active{
+  background: linear-gradient(180deg, rgba(34,48,92,.88), rgba(16,24,52,.88));
+  border-color: rgba(124,58,237,.42);
+  box-shadow: 0 0 0 1px rgba(124,58,237,.18), 0 14px 26px rgba(0,0,0,.25);
+}
+
+/* Contenu interne (icône/texte) */
+.tower-inner{
+  position:relative;
+  z-index:1;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:6px;
+  font-weight:900;
+  color: rgba(232,236,255,.90);
+  font-size: 12px;
+}
+
+/* Petit indicateur (optionnel) */
+.tower-mini{
+  font-size: 11px;
+  color: rgba(232,236,255,.65);
+  font-weight:800;
+}
+
+/* Révélation : animation “pop” */
+@keyframes popReveal{
+  0%{ transform: scale(.98); }
+  60%{ transform: scale(1.02); }
+  100%{ transform: scale(1); }
+}
+
+.tower-tile.reveal{
+  animation: popReveal 220ms ease;
+}
+
+/* SAFE -> vert */
+.tower-tile.safe{
+  border-color: rgba(34,197,94,.62);
+  background: linear-gradient(180deg, rgba(34,197,94,.18), rgba(14,20,40,.88));
+  box-shadow: 0 0 0 1px rgba(34,197,94,.20), 0 18px 34px rgba(0,0,0,.28);
+}
+
+/* TRAP -> rouge */
+.tower-tile.trap{
+  border-color: rgba(239,68,68,.62);
+  background: linear-gradient(180deg, rgba(239,68,68,.16), rgba(14,20,40,.88));
+  box-shadow: 0 0 0 1px rgba(239,68,68,.20), 0 18px 34px rgba(0,0,0,.28);
+}
+
+/* Icône gem (optionnelle, si tu ajoutes un PNG) */
+.tower-gem{
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 10px rgba(0,0,0,.35));
+}
+
+/* Hint */
+.tower-hint{
+  min-height: 20px;
+  color: rgba(232,236,255,.82);
+  font-size: 13px;
+}
+
+/* Mobile */
+@media (max-width: 520px){
+  .tower-tile{ height: 62px; }
+}
+
 
 .brand{ display:flex; gap:12px; align-items:center; }
 .logo{
@@ -437,3 +596,4 @@ body{
 @media (max-width: 520px){
   .tower-tile{ height: 86px; }
 }
+
