@@ -1,108 +1,104 @@
 <!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Casino Crush – Slots (Simulation)</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Casino Crush – Slots (Simulation)</title>
 
-  <meta name="theme-color" content="#0b1020" />
-  <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="icon" href="./icons/favicon.ico" sizes="any">
+<meta name="theme-color" content="#0b1020" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="stylesheet" href="styles.css" />
+<link rel="icon" href="./icons/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16.png">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 </head>
 <body>
 <header class="topbar">
-  <!-- Logo seul (plus gros, pas de texte à droite) -->
-  <div class="brand">
-    <img class="logo-img" src="./icons/icon-512.png" alt="Casino Crush" />
-  </div>
+<div class="brand">
+<img class="logo-img" src="./icons/icon-192.png" alt="Casino Crush" />
+<div>
+<div class="title">Casino Crush</div>
+        <div class="subtitle">Slots – simulation (crédits fictifs)</div>
+</div>
+</div>
+<div class="userbar">
+<div id="userAuthed" class="userbar-group" style="display:none;">
+<div class="account-pill">
+<span id="userPseudo" class="account-name">—</span>
+<span class="account-sep">•</span>
+<span class="account-label"><b>Crédits :</b></span>
+<span id="userCredits" class="account-credits">—</span>
+</div>
 
-  <div class="userbar">
-    <div id="userAuthed" class="userbar-group" style="display:none;">
-      <div class="account-pill">
-        <span id="userPseudo" class="account-name">—</span>
-        <span class="account-sep">•</span>
-        <span class="account-label"><b>Crédits :</b></span>
-        <span id="userCredits" class="account-credits">—</span>
-      </div>
+<button id="btnLogout" class="btn secondary userbar-btn">Déconnexion</button>
+</div>
 
-      <!-- Espace léger supplémentaire avant Déconnexion -->
-      <button id="btnLogout" class="btn secondary userbar-btn" style="margin-left:10px;">
-        Déconnexion
-      </button>
-    </div>
+<div id="userAnon" class="userbar-group">
+<a class="btn secondary userbar-btn" href="./login.html">Connexion</a>
+<a class="btn primary userbar-btn" href="./signup.html">Créer un compte</a>
+</div>
+</div>
 
-    <div id="userAnon" class="userbar-group">
-      <a class="btn secondary userbar-btn" href="./login.html">Connexion</a>
-      <a class="btn primary userbar-btn" href="./signup.html">Créer un compte</a>
-    </div>
-  </div>
 
-  <nav class="nav">
-    <button id="btnInstall" class="btn secondary" hidden>Installer</button>
-    <button id="btnReset" class="btn secondary">Réinitialiser</button>
-    <a class="btn secondary" href="./tower.html">Tower</a>
-    <a class="btn primary" href="./slot.html">Slots 3×3</a>
-  </nav>
+<nav class="nav">
+<button id="btnInstall" class="btn secondary" hidden>Installer</button>
+<button id="btnReset" class="btn secondary">Réinitialiser</button>
+<a class="btn secondary" href="./tower.html">Tower</a>
+<a class="btn primary" href="./slot.html">Slot 3×3</a>
+</nav>
 </header>
 
+<main class="container">
+<section class="card disclaimer" id="disclaimer">
+<div class="card-title">Simulation</div>
+<p>
+Crédits fictifs, aucun enjeu réel, aucune conversion en argent. Démonstration technique/jeu ludique.
+</p>
+<button id="btnHideDisclaimer" class="btn ghost">Masquer</button>
+</section>
 
-  <main class="container">
-    <section class="card disclaimer" id="disclaimer">
-      <div class="card-title">Simulation</div>
-      <p>
-        Crédits fictifs, aucun enjeu réel, aucune conversion en argent. Démonstration technique/jeu ludique.
-      </p>
-      <button id="btnHideDisclaimer" class="btn ghost">Masquer</button>
-    </section>
+<section class="hud">
+<div class="hud-item">
+<div class="hud-label">Crédits</div>
+<div id="credits" class="hud-value">—</div>
+</div>
+<div class="hud-item">
+<div class="hud-label">Mise</div>
+<div id="bet" class="hud-value">—</div>
+</div>
+<div class="hud-item">
+<div class="hud-label">Dernier gain</div>
+<div id="lastWin" class="hud-value">—</div>
+</div>
+</section>
 
-    <section class="hud">
-      <div class="hud-item">
-        <div class="hud-label">Crédits</div>
-        <div id="credits" class="hud-value">—</div>
-      </div>
-      <div class="hud-item">
-        <div class="hud-label">Mise</div>
-        <div id="bet" class="hud-value">—</div>
-      </div>
-      <div class="hud-item">
-        <div class="hud-label">Dernier gain</div>
-        <div id="lastWin" class="hud-value">—</div>
-      </div>
-    </section>
+<section class="slot-wrap">
+<div class="slot-frame">
+<div class="slot-grid" id="slotGrid" aria-label="Grille des rouleaux"></div>
+</div>
 
-    <section class="slot-wrap">
-      <div class="slot-frame">
-        <div class="slot-grid" id="slotGrid" aria-label="Grille des rouleaux"></div>
-      </div>
+<section class="controls">
+<button id="btnBetDown" class="btn secondary">Mise −</button>
+<button id="btnBetUp" class="btn secondary">Mise +</button>
+<button id="btnSpin" class="btn primary">SPIN</button>
+</section>
 
-      <section class="controls">
-        <button id="btnBetDown" class="btn secondary">Mise −</button>
-        <button id="btnBetUp" class="btn secondary">Mise +</button>
-        <button id="btnSpin" class="btn primary">SPIN</button>
-      </section>
+<section class="card result">
+<div class="card-title">Résultat</div>
+<div id="resultText" class="result-text">—</div>
+</section>
+</section>
+</main>
 
-      <section class="card result">
-        <div class="card-title">Résultat</div>
-        <div id="resultText" class="result-text">—</div>
-      </section>
-    </section>
-  </main>
+<footer class="footer">
+<span>Mode PWA : fonctionne hors-ligne après la première visite (cache local).</span>
+</footer>
 
-  <footer class="footer">
-    <span>Mode PWA : fonctionne hors-ligne après la première visite (cache local).</span>
-  </footer>
-
-  <script src="app.js"></script>
-  <script type="module" src="./auth-ui.js"></script>
+<script src="app.js"></script>
+<script type="module" src="./auth-ui.js"></script>
 </body>
 </html>
-
-
-
 
 
 
