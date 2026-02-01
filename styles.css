@@ -528,6 +528,11 @@ body{
   .avatar-sprite{ animation: none !important; }
 }
 
+.avatar-sprite{
+  background-image: url("./avatars/avatar_neutral_12f_512.png");
+  background-position: 0 0;
+}
+
 
 
 
