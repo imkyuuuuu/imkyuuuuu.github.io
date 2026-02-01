@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Casino Crush – Slots (Simulation)</title>
+
+  <meta name="theme-color" content="#0b1020" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">♣</div>
+      <div>
+        <div class="title">Casino Crush</div>
+        <div class="subtitle">Slots – simulation (crédits fictifs)</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button id="btnInstall" class="btn secondary" hidden>Installer</button>
+      <button id="btnReset" class="btn secondary">Réinitialiser</button>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="card disclaimer" id="disclaimer">
+      <div class="card-title">Simulation</div>
+      <p>
+        Crédits fictifs, aucun enjeu réel, aucune conversion en argent. Démonstration technique/jeu ludique.
+      </p>
+      <button id="btnHideDisclaimer" class="btn ghost">Masquer</button>
+    </section>
+
+    <section class="hud">
+      <div class="hud-item">
+        <div class="hud-label">Crédits</div>
+        <div id="credits" class="hud-value">—</div>
+      </div>
+      <div class="hud-item">
+        <div class="hud-label">Mise</div>
+        <div id="bet" class="hud-value">—</div>
+      </div>
+      <div class="hud-item">
+        <div class="hud-label">Dernier gain</div>
+        <div id="lastWin" class="hud-value">—</div>
+      </div>
+    </section>
+
+    <section class="slot-wrap">
+      <div class="slot-frame">
+        <div class="slot-grid" id="slotGrid" aria-label="Grille des rouleaux"></div>
+      </div>
+
+      <section class="controls">
+        <button id="btnBetDown" class="btn secondary">Mise −</button>
+        <button id="btnBetUp" class="btn secondary">Mise +</button>
+        <button id="btnSpin" class="btn primary">SPIN</button>
+      </section>
+
+      <section class="card result">
+        <div class="card-title">Résultat</div>
+        <div id="resultText" class="result-text">—</div>
+      </section>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>Mode PWA : fonctionne hors-ligne après la première visite (cache local).</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
