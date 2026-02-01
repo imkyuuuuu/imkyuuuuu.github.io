@@ -375,5 +375,12 @@ body{
   transform-origin: top right;
   transform: rotate(-45deg);
 }
+.logo-img{
+  width: 46px;      /* ajuste si tu veux plus gros */
+  height: 46px;
+  border-radius: 12px;   /* optionnel, look “app icon” */
+  object-fit: contain;
+  display: block;
+}
 
 
