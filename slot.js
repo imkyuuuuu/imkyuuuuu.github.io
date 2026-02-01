@@ -1,10 +1,10 @@
 // slot.js (MODULE)
 // Slot 3x3 - Arcade
-// - stake modifie la récompense en cas de gain
-// - Perte de crédit immédiate au lancement (mise)
-// - ajoute les crédits au compte Firestore (users/{uid}.credits)
+// - Utilise spendCredits pour la mise
+// - Utilise addCredits pour les gains
 
-import { addCredits } from "./credits.js";
+// MODIFICATION ICI : On importe spendCredits en plus
+import { addCredits, spendCredits } from "./credits.js";
 
 const ROWS = 3;
 const COLS = 3;
@@ -71,7 +71,7 @@ function setHint(text, ok=null){
   else ui.hint.className = "form-msg";
 }
 
-// Helper pour mettre à jour l'affichage des crédits dans le header/menu
+// Helper UI pour mettre à jour le solde affiché dans le menu
 function updateCreditsUI(amount) {
     const creditsEl = document.getElementById("userCredits");
     if (creditsEl && typeof amount === "number") {
@@ -111,7 +111,6 @@ function renderGrid(grid){
       cell.id = `slot-r${r}-c${c}`;
 
       const big = document.createElement("div");
-      cell.className = "slot-cell"; // Correction duplication class
       big.className = "slot-symbol";
       big.textContent = grid[r][c].label;
 
@@ -126,7 +125,7 @@ function renderGrid(grid){
   }
 }
 
-// --- CŒUR DU JEU MODIFIÉ ---
+// --- LOGIQUE PRINCIPALE MODIFIÉE ---
 async function spin(){
   if (locked) return;
 
@@ -139,25 +138,26 @@ async function spin(){
   locked = true;
   ui.btnSpin.disabled = true;
   clearHighlights();
-  
-  const stake = Number(ui.stake.value);
 
-  // 1. DÉBITER LA MISE AVANT DE LANCER (nombre négatif)
-  setHint(`Mise en jeu de ${stake} crédits...`, null);
-  
-  // On suppose que addCredits accepte les négatifs pour retirer des points
-  // Si le solde tombe sous 0, la transaction Firestore devrait échouer ou retourner !ok
-  const debitRes = await addCredits(user, -stake);
+  // On s'assure que stake est un entier (parseInt) car ton credits.js check Number.isInteger
+  const stake = parseInt(ui.stake.value, 10); 
 
-  if (!debitRes || !debitRes.ok) {
-      setHint("Crédits insuffisants ou erreur !", false);
+  setHint(`Mise : ${stake} crédits...`, null);
+
+  // 1. DÉBITER LA MISE (spendCredits)
+  // On utilise ta fonction spendCredits qui gère la transaction et vérifie le solde
+  const spendRes = await spendCredits(user, stake);
+
+  if (!spendRes.ok) {
+      // Si refusé (solde insuffisant ou erreur)
+      setHint(spendRes.msg || "Erreur de transaction.", false);
       locked = false;
       ui.btnSpin.disabled = false;
-      return; // On arrête tout, les crédits n'ont pas bougé (ou transaction annulée)
+      return; // On arrête tout ici
   }
 
-  // Mise à jour immédiate de l'affichage du solde (débité)
-  updateCreditsUI(debitRes.credits);
+  // Transaction réussie -> on met à jour l'affichage avec le nouveau solde
+  updateCreditsUI(spendRes.credits);
   setHint("Spinning...", null);
 
   // 2. ANIMATION
@@ -174,37 +174,35 @@ async function spin(){
   // 4. CALCUL DES GAINS
   const win = evaluate(current);
 
-  // --- CAS PERDANT ---
   if (!win.lines.length){
-    setHint(`Perdu. La mise de ${stake} est conservée par la maison.`, false);
+    // PERDU : On ne fait rien de plus côté DB (l'argent est déjà débité)
+    setHint(`Perdu.`, false);
     locked = false;
     ui.btnSpin.disabled = false;
     return;
   }
 
-  // --- CAS GAGNANT ---
-  // Gain total = (somme paytable des lignes × stake × bonus)
-  // Note: On a déjà débité la mise au début, donc ici on crédite le GAIN BRUT.
+  // GAGNÉ
   let base = 0;
   for (const L of win.lines){
     base += PAYTABLE[L.symbolKey] || 0;
   }
 
   const bonusMult = MULTILINE_BONUS[win.lines.length] || 1.0;
-  const reward = Math.round(base * stake * bonusMult);
+  const reward = Math.round(base * stake * bonusMult); // Gain brut
 
-  // Ajout du gain
-  const creditRes = await addCredits(user, reward);
+  // On crédite les gains (addCredits)
+  const addRes = await addCredits(user, reward);
 
-  // UI: Highlights
+  // Highlights UI
   highlightWin(win);
   drawOverlayLines(win.lines);
 
-  if (creditRes?.ok){
+  if (addRes?.ok){
     setHint(`GAGNÉ ! +${reward} crédits (Mise ${stake}).`, true);
-    updateCreditsUI(creditRes.credits);
+    updateCreditsUI(addRes.credits);
   } else {
-    setHint("Gagné, mais erreur lors de l'ajout des crédits.", false);
+    setHint(`Gagné (+${reward}), mais erreur réseau lors de l'ajout.`, false);
   }
 
   locked = false;
