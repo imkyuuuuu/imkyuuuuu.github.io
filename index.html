@@ -63,8 +63,20 @@ Crédits fictifs, aucun enjeu réel, aucune conversion en argent. Démonstration
 
 <script src="app.js"></script>
 <script type="module" src="./auth-ui.js"></script>
+  <script>
+  (async () => {
+    if (!("serviceWorker" in navigator)) return;
+    const regs = await navigator.serviceWorker.getRegistrations();
+    for (const r of regs) await r.unregister();
+    if (window.caches?.keys) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  })();
+</script>
 </body>
 </html>
+
 
 
 
