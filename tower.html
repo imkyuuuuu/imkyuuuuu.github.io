@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Casino Crush – Tower (Arcade)</title>
+
+  <meta name="theme-color" content="#0b1020" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">▲</div>
+      <div>
+        <div class="title">Casino Crush</div>
+        <div class="subtitle">Tower – arcade (score fictif)</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <a class="btn secondary" href="./index.html">Accueil</a>
+      <button id="btnResetTower" class="btn secondary">Réinitialiser</button>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="card disclaimer" id="towerDisclaimer">
+      <div class="card-title">Mode arcade</div>
+      <p>
+        Jeu de simulation / arcade. Aucun enjeu réel, aucun achat, aucune conversion en argent.
+      </p>
+      <button id="btnHideTowerDisclaimer" class="btn ghost">Masquer</button>
+    </section>
+
+    <section class="hud">
+      <div class="hud-item">
+        <div class="hud-label">Étage</div>
+        <div id="towerFloor" class="hud-value">—</div>
+      </div>
+      <div class="hud-item">
+        <div class="hud-label">Score</div>
+        <div id="towerScore" class="hud-value">—</div>
+      </div>
+      <div class="hud-item">
+        <div class="hud-label">Statut</div>
+        <div id="towerStatus" class="hud-value">—</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-title">Paramètres</div>
+
+      <div class="tower-settings">
+        <label class="tower-label">
+          Étages
+          <input id="inpFloors" type="number" min="5" max="50" step="1" value="10" />
+        </label>
+
+        <label class="tower-label">
+          Colonnes
+          <input id="inpCols" type="number" min="2" max="6" step="1" value="3" />
+        </label>
+
+        <label class="tower-label">
+          Points / étage
+          <input id="inpPoints" type="number" min="1" max="1000" step="1" value="50" />
+        </label>
+
+        <button id="btnStartTower" class="btn primary">Démarrer</button>
+      </div>
+
+      <p class="tower-note">
+        Probabilité de réussite par étage ≈ 1 / colonnes. RNG : <code>crypto.getRandomValues</code>.
+      </p>
+    </section>
+
+    <section class="tower-wrap">
+      <div class="tower-board card">
+        <div class="card-title">Choix de l’étage courant</div>
+        <div id="towerChoices" class="tower-choices"></div>
+
+        <div class="tower-actions">
+          <button id="btnStopRun" class="btn secondary" disabled>Terminer la run</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Historique</div>
+        <div id="towerLog" class="tower-log">—</div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>PWA : fonctionne hors-ligne après la première visite (cache local).</span>
+  </footer>
+
+  <script src="tower.js"></script>
+</body>
+</html>
