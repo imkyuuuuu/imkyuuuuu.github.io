@@ -46,15 +46,36 @@
 </nav>
 </header>
 
-<main class="container">
-<section class="card disclaimer" id="disclaimer">
+  <main class="container layout-two-cols">
+  <!-- Colonne gauche : avatar -->
+  <aside class="card avatar-panel" aria-label="Avatar du joueur">
+    <div class="avatar-frame">
+      <div class="avatar-inner">
+        <!-- Option A: sprite sheet (recommandé) -->
+        <div class="avatar-sprite" role="img" aria-label="Avatar animé"></div>
+
+        <!-- Option B (alternatif): gif/webp animé -->
+        <!-- <img class="avatar-media" src="./avatars/avatar.gif" alt="Avatar animé" /> -->
+      </div>
+    </div>
+    <div class="avatar-caption">
+      <div class="avatar-name">Avatar</div>
+      <div class="avatar-sub">Synchronisé au compte</div>
+    </div>
+  </aside>
+
+  <!-- Colonne droite : ton contenu existant -->
+  <section class="main-content">
+    <!-- ICI tu colles tout ce que tu as déjà (disclaimer, tower-wrap, etc.) -->
+    <!-- ex: <section class="card disclaimer">...</section> -->
+    <!-- ex: <section class="tower-wrap">...</section> -->
+    <section class="card disclaimer" id="disclaimer">
 <div class="card-title">Simulation</div>
 <p>
 Crédits fictifs, aucun enjeu réel, aucune conversion en argent. Démonstration technique/jeu ludique.
 </p>
 <button id="btnHideDisclaimer" class="btn ghost">Masquer</button>
-</section>
-
+  </section>
 </main>
 
 <footer class="footer">
@@ -76,6 +97,7 @@ Crédits fictifs, aucun enjeu réel, aucune conversion en argent. Démonstration
 </script>
 </body>
 </html>
+
 
 
 
