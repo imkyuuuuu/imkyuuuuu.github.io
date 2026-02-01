@@ -91,13 +91,13 @@ function resetAll() {
 }
 
 function start() {
-  const safeByRow = Array.from({ length: ROWS }, () => randInt(COLS));
+  const trapByRow = Array.from({ length: ROWS }, () => randInt(COLS));
   setState({
     running: true,
     locked: false,
     activeRow: 0,
     score: 0,
-    safeByRow,
+    trapByRow,
     history: []
   });
   ui.hint.textContent = "Partie démarrée. Clique une tuile sur la ligne active.";
@@ -116,8 +116,8 @@ async function onPick(row, col) {
   setState({ locked: true });
   ui.hint.textContent = "Révélation…";
 
-  const safeCol = state.safeByRow[row];
-  const isSafe = (col === safeCol);
+  const trapCol = state.trapByRow[row];
+  const isSafe = (col === trapCol);
 
   // Révéler la tuile cliquée
   revealTile(row, col, isSafe ? "SAFE" : "TRAP", false);
