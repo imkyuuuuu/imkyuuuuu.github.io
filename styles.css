@@ -45,8 +45,8 @@ body{
   width:400px; height:400px;          /* ↑ plus gros */
   position: absolute;
   left: 0;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 0;
+  transform: none;
   object-fit: contain;
   pointer-events: none;
   border-radius:0;                  /* pas de tuile arrondie */
@@ -427,6 +427,7 @@ body{
 #btnLogout{
   margin-left: 8px;
 }
+
 
 
 
