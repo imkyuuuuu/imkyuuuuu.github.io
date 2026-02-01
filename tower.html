@@ -76,15 +76,43 @@
       </p>
     </section>
 
-    <section class="tower-wrap">
-      <div class="tower-board card">
-        <div class="card-title">Choix de l’étage courant</div>
-        <div id="towerChoices" class="tower-choices"></div>
+<section class="tower-wrap">
+  <!-- Colonne tour (à gauche) -->
+  <div class="tower-visual card">
+    <div class="card-title">Tour</div>
+    <div id="towerStack" class="tower-stack" aria-label="Tour verticale des étages"></div>
+    <div class="tower-legend">
+      <span class="pill pill-upcoming">À venir</span>
+      <span class="pill pill-active">Actuel</span>
+      <span class="pill pill-done">Réussi</span>
+      <span class="pill pill-fail">Échec</span>
+    </div>
+  </div>
 
-        <div class="tower-actions">
-          <button id="btnStopRun" class="btn secondary" disabled>Terminer la run</button>
-        </div>
-      </div>
+  <!-- Zone de jeu (à droite) -->
+  <div class="tower-board card">
+    <div class="card-title">Étage courant</div>
+    <div class="tower-sub">
+      Choisis une case. Révélation visuelle immédiate (safe/trap).
+    </div>
+
+    <!-- Grille de tuiles à révélation -->
+    <div id="towerChoices" class="tower-choices-grid" aria-label="Choix de cases"></div>
+
+    <div class="tower-actions">
+      <button id="btnStopRun" class="btn secondary" disabled>Terminer la run</button>
+    </div>
+
+    <div class="tower-hint" id="towerHint"></div>
+  </div>
+
+  <!-- Historique -->
+  <div class="card">
+    <div class="card-title">Historique</div>
+    <div id="towerLog" class="tower-log">—</div>
+  </div>
+</section>
+
 
       <div class="card">
         <div class="card-title">Historique</div>
