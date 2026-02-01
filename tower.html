@@ -132,5 +132,16 @@
 
   <script type="module" src="./auth-ui.js"></script>
   <script type="module" src="./tower.js"></script>
+  <script>
+  (async () => {
+    if (!("serviceWorker" in navigator)) return;
+    const regs = await navigator.serviceWorker.getRegistrations();
+    for (const r of regs) await r.unregister();
+    if (window.caches?.keys) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  })();
+</script>
 </body>
 </html>
