@@ -1,5 +1,5 @@
 // PWA cache minimal : offline after first load.
-const CACHE_NAME = "casino-crush-pwa-v2";
+const CACHE_NAME = "casino-crush-pwa-v3";
 const ASSETS = [
   "./",
   "./index.html",
@@ -36,6 +36,7 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+
 
 
 
