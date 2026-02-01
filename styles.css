@@ -533,6 +533,26 @@ body{
   background-position: 0 0;
 }
 
+/* Cadre intérieur : centre tout ce qu'il contient */
+.avatar-inner{
+  display: grid;
+  place-items: center; /* centré horizontal + vertical */
+  overflow: hidden;
+}
+
+/* Image avatar : ne dépasse pas, garde les proportions */
+.avatar-img{
+  width: 100%;
+  height: 100%;
+  max-width: 520px;   /* optionnel: garde un rendu stable */
+  max-height: 520px;  /* optionnel */
+  object-fit: contain; /* ✅ pas de crop, garde l'image entière */
+  object-position: center;
+  display: block;
+  filter: drop-shadow(0 18px 32px rgba(0,0,0,.35));
+}
+
+
 
 
 
